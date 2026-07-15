@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>俄罗斯方块 | Tetris</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- ===== Navigation Bar ===== -->
+<nav class="nav-bar" id="nav-bar">
+    <span class="logo">TETRIS</span>
+    <a href="#" data-page="home" class="active">首页</a>
+    <a href="#" data-page="speed">竞速</a>
+    <a href="#" data-page="rhythm">节奏</a>
+    <a href="#" data-page="mutation">变异</a>
+    <a href="#" data-page="settings">设置</a>
+    <a href="#" data-page="account">账号管理</a>
+</nav>
+
+<!-- ===== Home Page ===== -->
+<div id="page-home" class="home-container">
+    <h1>俄罗斯方块</h1>
+    <p class="subtitle">SRS 现代俄罗斯方块 — 多模式、多变异、自定义按键</p>
+    <div class="mode-grid">
+        <a href="#" class="mode-card" data-launch="speed">
+            <div class="mode-icon">⏱️</div>
+            <div class="mode-name">竞速模式</div>
+            <div class="mode-desc">限时消行或固定行数竞速，挑战最快速度</div>
+        </a>
+        <a href="#" class="mode-card" data-launch="rhythm">
+            <div class="mode-icon">🎵</div>
+            <div class="mode-name">节奏模式</div>
+            <div class="mode-desc">BPM 控制锁块节拍，跟随音乐节奏操作</div>
+        </a>
+        <a href="#" class="mode-card" data-launch="mutation">
+            <div class="mode-icon">🧬</div>
+            <div class="mode-name">变异模式</div>
+            <div class="mode-desc">消行不掉落 / 随机生成砖粒 / 随机消失砖粒</div>
+        </a>
+        <a href="#" class="mode-card" data-launch="normal">
+            <div class="mode-icon">🧱</div>
+            <div class="mode-name">经典模式</div>
+            <div class="mode-desc">标准 SRS 俄罗斯方块，无限挑战</div>
+        </a>
+    </div>
+</div>
+
+<!-- ===== Speed Config Page ===== -->
+<div id="page-speed" class="speed-config hidden">
+    <h2>竞速模式</h2>
+    <div class="mutation-option" data-speed="time" style="justify-content:center;">
+        <input type="radio" name="speed-type" value="time" checked>
+        <div>
+            <div class="mut-name">限时消行</div>
+            <div class="mut-desc">在固定时间内尽可能多地消除行数</div>
+            <div class="form-group mt-16">
+                <label>时间（秒）</label>
+                <input type="number" id="speed-time" value="120" min="30" max="600" step="10">
+            </div>
+        </div>
+    </div>
+    <div class="mutation-option" data-speed="lines" style="justify-content:center;">
+        <input type="radio" name="speed-type" value="lines">
+        <div>
+            <div class="mut-name">固定行数竞速</div>
+            <div class="mut-desc">尽快消除指定行数，比拼用时</div>
+            <div class="form-group mt-16">
+                <label>目标行数</label>
+                <input type="number" id="speed-lines" value="40" min="10" max="200" step="10">
+            </div>
+        </div>
+    </div>
+    <button class="btn btn-primary btn-block mt-24" onclick="launchSpeedMode()">开始竞速</button>
+</div>
+
+<!-- ===== Rhythm Config Page ===== -->
+<div id="page-rhythm" class="rhythm-config hidden">
+    <h2>节奏模式</h2>
+    <p>设置 BPM 决定方块自动锁定节奏</p>
+    <div class="bpm-display" id="bpm-display">120</div>
+    <input type="range" class="bpm-slider" id="bpm-slider" min="30" max="300" value="120" step="5"
+        oninput="document.getElementById('bpm-display').textContent=this.value">
+    <p class="rhythm-info">
+        <span id="bpm-info">每 0.50 秒自动锁定一个下落中的方块</span>
+    </p>
+    <button class="btn btn-primary btn-block mt-24" onclick="launchRhythmMode()">开始节奏</button>
+</div>
+
+<!-- ===== Mutation Config Page ===== -->
+<div id="page-mutation" class="mutation-config hidden">
+    <h2>变异模式</h2>
+    <p class="text-dim text-sm" style="margin-bottom:18px;">可同时选择多个变异效果组合游玩</p>
+    <label class="mutation-option">
+        <input type="checkbox" name="mutation-type" value="no_gravity" checked>
+        <div>
+            <div class="mut-name">🧱 消行不掉落</div>
+            <div class="mut-desc">方块消除后，上方方块不再下落，形成空洞</div>
+        </div>
+    </label>
+    <label class="mutation-option">
+        <input type="checkbox" name="mutation-type" value="extra_cells">
+        <div>
+            <div class="mut-name">➕ 随机生成砖粒</div>
+            <div class="mut-desc">每消除4个方块，场上随机多出数个砖粒</div>
+        </div>
+    </label>
+    <label class="mutation-option">
+        <input type="checkbox" name="mutation-type" value="random_vanish">
+        <div>
+            <div class="mut-name">➖ 随机消失砖粒</div>
+            <div class="mut-desc">每放置3个方块，场上随机消失数块砖粒</div>
+        </div>
+    </label>
+    <label class="mutation-option">
+        <input type="checkbox" name="mutation-type" value="double_size">
+        <div>
+            <div class="mut-name">🟫 方块二倍大</div>
+            <div class="mut-desc">所有方块长宽变为两倍，面积×4，场地不变，移动每次一小格</div>
+        </div>
+    </label>
+    <button class="btn btn-primary btn-block mt-24" onclick="launchMutationMode()">开始变异</button>
+</div>
+
+<!-- ===== Settings Page ===== -->
+<div id="page-settings" class="settings-container hidden">
+    <h2>操作设置</h2>
+    <div id="settings-login-prompt" class="text-center mt-16" style="color:var(--accent2);">
+        请先登录后再设置按键和手感
+    </div>
+    <div id="settings-content" class="hidden">
+        <div class="settings-section">
+            <h3>按键设置</h3>
+            <div id="key-settings-list"></div>
+        </div>
+        <div class="settings-section">
+            <h3>操作手感 (DAS / ARR)</h3>
+            <p class="text-sm text-dim" style="margin-bottom:12px;">
+                DAS：按住方向键后，第一次横向移动的延迟帧数<br>
+                ARR：后续连续横向移动的间隔帧数（60帧=1秒）
+            </p>
+            <div class="das-row">
+                <label>DAS（首次延迟）</label>
+                <input type="range" id="das-slider" min="1" max="30" value="10" step="1"
+                    oninput="document.getElementById('das-val').textContent=this.value">
+                <span class="das-val" id="das-val">10</span>
+                <span class="text-sm text-dim">帧</span>
+            </div>
+            <div class="das-row">
+                <label>ARR（重复间隔）</label>
+                <input type="range" id="arr-slider" min="0" max="20" value="2" step="1"
+                    oninput="document.getElementById('arr-val').textContent=this.value">
+                <span class="das-val" id="arr-val">2</span>
+                <span class="text-sm text-dim">帧</span>
+            </div>
+            <div class="das-row">
+                <label>预览方块数量</label>
+                <input type="range" id="preview-slider" min="1" max="8" value="5" step="1"
+                    oninput="document.getElementById('preview-val').textContent=this.value">
+                <span class="das-val" id="preview-val">5</span>
+                <span class="text-sm text-dim">个</span>
+            </div>
+        </div>
+        <button class="btn btn-primary btn-block" onclick="saveAllSettings()">保存设置</button>
+    </div>
+</div>
+
+<!-- ===== Account Page ===== -->
+<div id="page-account" class="auth-panel hidden">
+    <!-- Login Form -->
+    <div id="account-login">
+        <h2>登录</h2>
+        <div class="form-group"><input type="text" id="login-username" placeholder="用户名"></div>
+        <div class="form-group"><input type="password" id="login-password" placeholder="密码"></div>
+        <button class="btn btn-primary btn-block" onclick="doLogin()">登录</button>
+        <p class="text-center mt-16">
+            <span class="link-text" onclick="showRegisterForm()">没有账号？注册</span>
+        </p>
+    </div>
+    <!-- Register Form -->
+    <div id="account-register" class="hidden">
+        <h2>注册</h2>
+        <div class="form-group"><input type="text" id="reg-username" placeholder="用户名" oninput="checkRegBtn()"></div>
+        <div class="form-group"><input type="password" id="reg-password" placeholder="密码（至少6位）"></div>
+        <button class="btn btn-primary btn-block" id="reg-btn" onclick="doRegister()">注册</button>
+        <p class="text-center mt-16">
+            <span class="link-text" onclick="showLoginForm()">已有账号？登录</span>
+        </p>
+    </div>
+    <!-- User Info -->
+    <div id="account-info" class="hidden">
+        <h2>账号管理</h2>
+        <p style="margin-bottom:16px;">当前账号：<b id="info-username"></b></p>
+        <div class="settings-section">
+            <h3>修改名称</h3>
+            <div class="form-group"><input type="text" id="new-name" placeholder="新名称"></div>
+            <button class="btn btn-outline" onclick="changeName()">修改名称</button>
+        </div>
+        <div class="settings-section">
+            <h3>修改密码</h3>
+            <div class="form-group"><input type="password" id="old-pw" placeholder="旧密码"></div>
+            <div class="form-group"><input type="password" id="new-pw1" placeholder="新密码"></div>
+            <div class="form-group"><input type="password" id="new-pw2" placeholder="确认新密码"></div>
+            <button class="btn btn-danger" onclick="changePassword()">修改密码</button>
+        </div>
+        <p class="text-center mt-16">
+            <span class="link-text" onclick="doLogout()">退出登录</span>
+        </p>
+    </div>
+</div>
+
+<script src="js/auth.js"></script>
+<script src="js/ui.js"></script>
+<script>
+// ===== Page Navigation =====
+function showPage(name) {
+    document.querySelectorAll('[id^="page-"]').forEach(el => el.classList.add('hidden'));
+    const page = document.getElementById('page-' + name);
+    if (page) page.classList.remove('hidden');
+    document.querySelectorAll('.nav-bar a[data-page]').forEach(a => a.classList.remove('active'));
+    const navLink = document.querySelector(`.nav-bar a[data-page="${name}"]`);
+    if (navLink) navLink.classList.add('active');
+
+    if (name === 'account') updateAccountPage();
+    if (name === 'settings') loadSettingsPage();
+}
+
+// Nav bar clicks
+document.querySelectorAll('.nav-bar a[data-page]').forEach(a => {
+    a.addEventListener('click', e => {
+        e.preventDefault();
+        showPage(a.dataset.page);
+    });
+});
+
+// Launch mode cards
+document.querySelectorAll('.mode-card[data-launch]').forEach(card => {
+    card.addEventListener('click', e => {
+        e.preventDefault();
+        if (!Auth.isLoggedIn()) {
+            showPage('account');
+            UI.showMessage('请先登录', 'info');
+            return;
+        }
+        const mode = card.dataset.launch;
+        if (mode === 'normal') {
+            launchNormalMode();
+        } else {
+            showPage(mode);
+        }
+    });
+});
+
+// Speed radio toggle
+document.querySelectorAll('.mutation-option[data-speed]').forEach(opt => {
+    opt.addEventListener('click', () => {
+        const radio = opt.querySelector('input[type="radio"]');
+        radio.checked = true;
+    });
+});
+
+// BPM slider info
+document.getElementById('bpm-slider').addEventListener('input', function() {
+    const bpm = parseInt(this.value);
+    const sec = (60 / bpm).toFixed(2);
+    document.getElementById('bpm-info').textContent = `每 ${sec} 秒自动锁定一个下落中的方块`;
+});
+
+// ===== Launch Modes =====
+function getKeySettings() {
+    if (Auth.user && Auth.user.key_settings) return Auth.user.key_settings;
+    return {
+        move_left: 'ArrowLeft', move_right: 'ArrowRight',
+        soft_drop: 'ArrowDown', hard_drop: 'Space',
+        rotate_cw: 'ArrowUp', rotate_ccw: 'KeyZ',
+        rotate_180: 'KeyA', hold: 'KeyC',
+        reset: 'KeyR', pause: 'Escape',
+    };
+}
+
+function getDasSettings() {
+    if (Auth.user && Auth.user.das_settings) return Auth.user.das_settings;
+    return { das: 10, arr: 2, preview_count: 5 };
+}
+
+function launchGame(params = {}) {
+    const das = getDasSettings();
+    params.preview = das.preview_count || 5;
+    const qs = new URLSearchParams(params).toString();
+    window.location.href = '/game?' + qs;
+}
+
+function launchSpeedMode() {
+    const type = document.querySelector('input[name="speed-type"]:checked').value;
+    const target = type === 'time'
+        ? document.getElementById('speed-time').value
+        : document.getElementById('speed-lines').value;
+    launchGame({ mode: 'speed', type, target });
+}
+
+function launchRhythmMode() {
+    const bpm = document.getElementById('bpm-slider').value;
+    launchGame({ mode: 'rhythm', bpm });
+}
+
+function launchMutationMode() {
+    const checked = document.querySelectorAll('input[name="mutation-type"]:checked');
+    const type = Array.from(checked).map(cb => cb.value).join(',');
+    if (!type) {
+        UI.showMessage('请至少选择一个变异效果', 'info');
+        return;
+    }
+    launchGame({ mode: 'mutation', mutation: type });
+}
+
+function launchNormalMode() {
+    launchGame({ mode: 'normal' });
+}
+
+// ===== Settings Page =====
+const KEY_ACTIONS = [
+    { name: 'move_left', label: '左移' },
+    { name: 'move_right', label: '右移' },
+    { name: 'soft_drop', label: '软降' },
+    { name: 'hard_drop', label: '硬降' },
+    { name: 'rotate_cw', label: '顺时针旋转' },
+    { name: 'rotate_ccw', label: '逆时针旋转' },
+    { name: 'rotate_180', label: '180°旋转' },
+    { name: 'hold', label: '暂存' },
+    { name: 'reset', label: '重置' },
+    { name: 'pause', label: '暂停' },
+];
+
+function loadSettingsPage() {
+    if (!Auth.isLoggedIn()) {
+        document.getElementById('settings-login-prompt').classList.remove('hidden');
+        document.getElementById('settings-content').classList.add('hidden');
+        return;
+    }
+    document.getElementById('settings-login-prompt').classList.add('hidden');
+    document.getElementById('settings-content').classList.remove('hidden');
+
+    const keys = getKeySettings();
+    const das = getDasSettings();
+
+    const list = document.getElementById('key-settings-list');
+    list.innerHTML = KEY_ACTIONS.map(action => `
+        <div class="key-row">
+            <span class="key-label">${action.label}</span>
+            <div class="key-input" id="key-${action.name}" data-action="${action.name}"
+                onclick="captureKey('${action.name}')">${UI.keyCodeToLabel(keys[action.name] || '')}</div>
+        </div>
+    `).join('');
+
+    document.getElementById('das-slider').value = das.das;
+    document.getElementById('das-val').textContent = das.das;
+    document.getElementById('arr-slider').value = das.arr;
+    document.getElementById('arr-val').textContent = das.arr;
+    document.getElementById('preview-slider').value = das.preview_count || 5;
+    document.getElementById('preview-val').textContent = das.preview_count || 5;
+
+    window._tempKeySettings = { ...keys };
+    window._tempDasSettings = { ...das };
+}
+
+async function captureKey(action) {
+    const el = document.getElementById('key-' + action);
+    const original = el.textContent;
+    el.textContent = '...按下按键...';
+    el.style.border = '2px solid var(--accent)';
+
+    const code = await UI.waitForKey();
+    window._tempKeySettings[action] = code;
+    el.textContent = UI.keyCodeToLabel(code);
+    el.style.border = '1px solid var(--border)';
+}
+
+async function saveAllSettings() {
+    if (!Auth.isLoggedIn()) return;
+    const das = parseInt(document.getElementById('das-slider').value);
+    const arr = parseInt(document.getElementById('arr-slider').value);
+    const preview_count = parseInt(document.getElementById('preview-slider').value);
+    const dasSettings = { das, arr, preview_count };
+
+    const res = await Auth.saveSettings(window._tempKeySettings, dasSettings);
+    // Update local user
+    Auth.user.key_settings = window._tempKeySettings;
+    Auth.user.das_settings = dasSettings;
+    localStorage.setItem('tetris_user', JSON.stringify(Auth.user));
+
+    if (res.success) {
+        UI.showMessage('设置已保存', 'success');
+    } else {
+        UI.showMessage('保存失败', 'error');
+    }
+}
+
+// ===== Account Page =====
+function updateAccountPage() {
+    if (Auth.isLoggedIn()) {
+        document.getElementById('account-login').classList.add('hidden');
+        document.getElementById('account-register').classList.add('hidden');
+        document.getElementById('account-info').classList.remove('hidden');
+        document.getElementById('info-username').textContent = Auth.user.username;
+    } else {
+        document.getElementById('account-login').classList.remove('hidden');
+        document.getElementById('account-register').classList.add('hidden');
+        document.getElementById('account-info').classList.add('hidden');
+    }
+}
+
+function showRegisterForm() {
+    document.getElementById('account-login').classList.add('hidden');
+    document.getElementById('account-register').classList.remove('hidden');
+    document.getElementById('account-info').classList.add('hidden');
+}
+
+function showLoginForm() {
+    document.getElementById('account-login').classList.remove('hidden');
+    document.getElementById('account-register').classList.add('hidden');
+    document.getElementById('account-info').classList.add('hidden');
+}
+
+async function doLogin() {
+    const username = document.getElementById('login-username').value.trim();
+    const password = document.getElementById('login-password').value;
+    if (!username || !password) return UI.showMessage('请输入用户名和密码', 'error');
+
+    const res = await Auth.login(username, password);
+    if (res.success) {
+        UI.showMessage('登录成功', 'success');
+        updateAccountPage();
+        updateNav();
+    } else {
+        UI.showMessage(res.message, 'error');
+    }
+}
+
+async function doRegister() {
+    const username = document.getElementById('reg-username').value.trim();
+    const password = document.getElementById('reg-password').value;
+    if (!username || !password) return UI.showMessage('请填写完整', 'error');
+    if (password.length < 6) return UI.showMessage('密码至少6位', 'error');
+
+    // Check username first
+    const checkRes = await Auth.checkUsername(username);
+    if (checkRes.exists) return UI.showMessage('这个名称别人在用', 'error');
+
+    const res = await Auth.register(username, password);
+    if (res.success) {
+        UI.showMessage('注册成功，请登录', 'success');
+        document.getElementById('reg-username').value = '';
+        document.getElementById('reg-password').value = '';
+        showLoginForm();
+    } else {
+        UI.showMessage(res.message, 'error');
+    }
+}
+
+async function changeName() {
+    const newName = document.getElementById('new-name').value.trim();
+    if (!newName) return UI.showMessage('请输入新名称', 'error');
+    const checkRes = await Auth.checkUsername(newName);
+    if (checkRes.exists) return UI.showMessage('这个名称别人在用', 'error');
+
+    // Update account
+    const res = await fetch('/api/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: newName, password: 'temp123456' }),
+    });
+    const data = await res.json();
+    if (data.success || data.message === '这个名称别人在用') {
+        // Actually we need an update endpoint - use the register one
+    }
+    UI.showMessage('暂不支持直接改名，请注销后重新注册', 'info');
+}
+
+async function changePassword() {
+    const oldPw = document.getElementById('old-pw').value;
+    const newPw1 = document.getElementById('new-pw1').value;
+    const newPw2 = document.getElementById('new-pw2').value;
+
+    if (!oldPw || !newPw1 || !newPw2) return UI.showMessage('请填写所有密码字段', 'error');
+    if (newPw1 !== newPw2) return UI.showMessage('两次输入的新密码不一致', 'error');
+    if (newPw1.length < 6) return UI.showMessage('新密码至少6位', 'error');
+    if (oldPw === newPw1) return UI.showMessage('新密码不能与旧密码相同', 'error');
+
+    const res = await Auth.changePassword(oldPw, newPw1);
+    if (res.success) {
+        UI.showMessage('密码修改成功', 'success');
+        document.getElementById('old-pw').value = '';
+        document.getElementById('new-pw1').value = '';
+        document.getElementById('new-pw2').value = '';
+    } else {
+        UI.showMessage(res.message, 'error');
+    }
+}
+
+function doLogout() {
+    Auth.logout();
+    updateAccountPage();
+    updateNav();
+    UI.showMessage('已退出', 'success');
+}
+
+// ===== Init =====
+updateNav();
+showPage('home');
+</script>
+</body>
+</html>

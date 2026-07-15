@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>俄罗斯方块 - 游戏中</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<nav class="nav-bar" id="nav-bar">
+    <span class="logo">TETRIS</span>
+    <a href="/" data-page="home">←返回</a>
+    <span class="user-info" id="user-info" style="margin-left:auto;color:var(--accent2);"></span>
+</nav>
+
+<div class="game-container" id="game-container">
+
+    <!-- Left Sidebar: Hold + Stats -->
+    <div class="game-sidebar" id="left-sidebar">
+        <h3>暂存</h3>
+        <div class="preview-board" id="hold-board" style="grid-template-columns:repeat(4,18px);grid-template-rows:repeat(2,18px);"></div>
+        <div class="text-sm text-dim mt-16" id="mode-display">经典模式</div>
+        <div class="timer-display hidden" id="timer-display">0:00</div>
+    </div>
+
+    <!-- Center: Game Board -->
+    <div class="game-board-wrap">
+        <div class="game-board" id="game-board"></div>
+        <div id="game-overlay-empty" class="game-overlay">
+            <div class="overlay-box">
+                <h2>准备开始</h2>
+                <p class="text-dim" style="margin:14px 0;">按【开始】或【回车】开始游戏</p>
+                <p class="text-sm text-dim">登录后设置个性化按键</p>
+                <button class="btn btn-primary mt-16" onclick="startGame()">开始游戏</button>
+            </div>
+        </div>
+        <div id="game-overlay-pause" class="game-overlay hidden">
+            <div class="overlay-box">
+                <h2>已暂停</h2>
+                <p class="text-dim" style="margin:14px 0;">按【继续】或【ESC】继续</p>
+                <button class="btn btn-primary" onclick="togglePause()">继续</button>
+                <button class="btn btn-outline mt-16" onclick="location.href='/'">返回首页</button>
+            </div>
+        </div>
+        <div id="game-overlay-over" class="game-overlay hidden">
+            <div class="overlay-box" id="over-box">
+                <h2 id="over-title">游戏结束</h2>
+                <div class="big-score" id="over-score">0</div>
+                <p id="over-detail" class="text-dim"></p>
+                <div class="btn-group" style="justify-content:center;margin-top:18px;">
+                    <button class="btn btn-primary" onclick="restartGame()">再来一局</button>
+                    <button class="btn btn-outline" onclick="location.href='/'">返回首页</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Sidebar: Next + Score -->
+    <div class="game-sidebar" id="right-sidebar">
+        <h3>下一个</h3>
+        <div class="preview-board" id="next-board" style="grid-template-columns:repeat(4,18px);grid-template-rows:repeat(10,18px);"></div>
+        <div class="score-display mt-16">
+            <div class="score-val" id="score-val">0</div>
+            <div class="score-label">分数</div>
+        </div>
+        <div class="score-display mt-16">
+            <div class="score-val" id="lines-val">0</div>
+            <div class="score-label">行数</div>
+        </div>
+        <div class="score-display mt-16">
+            <div class="score-val" id="level-val">1</div>
+            <div class="score-label">等级</div>
+        </div>
+    </div>
+</div>
+
+<script src="js/auth.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/tetris-core.js"></script>
+<script src="js/modes.js"></script>
+
+<script>
+const CELL = 32;
+const PREVIEW_CELL = 18;
+
+const URL_PARAMS = new URLSearchParams(location.search);
+const GAME_MODE = URL_PARAMS.get('mode') || 'normal';
+const previewCount = parseInt(URL_PARAMS.get('preview') || '5');
+
+let engine = null;
+let gameMode = null;
+let lastKeyDowns = new Set();
+let keyCooldowns = {};
+let speedTick = null;
+
+// ===== Initialize DOM =====
+const boardEl = document.getElementById('game-board');
+const holdEl = document.getElementById('hold-board');
+const nextEl = document.getElementById('next-board');
+
+function createEmptyBoard(rows, cols) {
+    const board = document.createElement('div');
+    board.style.gridTemplateColumns = `repeat(${cols}, ${CELL}px)`;
+    board.style.gridTemplateRows = `repeat(${rows}, ${CELL}px)`;
+    return board;
+}
+
+function initDom() {
+    // Main game board
+    boardEl.style.gridTemplateColumns = `repeat(10, ${CELL}px)`;
+    boardEl.style.gridTemplateRows = `repeat(20, ${CELL}px)`;
+
+    // Hold board (4x2)
+    holdEl.innerHTML = '';
+    for (let i = 0; i < 4 * 2; i++) {
+        const cell = document.createElement('div');
+        cell.style.width = PREVIEW_CELL + 'px';
+        cell.style.height = PREVIEW_CELL + 'px';
+        cell.style.background = '#1a1a2e';
+        cell.style.borderRadius = '2px';
+        cell.className = 'preview-cell';
+        holdEl.appendChild(cell);
+    }
+
+    // Next board - use dynamic rows based on previewCount + spacing
+    const nextRows = previewCount * 3; // 2 rows piece + 1 row spacing
+    nextEl.style.display = 'grid';
+    nextEl.style.gridTemplateColumns = 'repeat(4, 18px)';
+    nextEl.style.gridTemplateRows = `repeat(${nextRows}, 18px)`;
+    nextEl.style.gap = '1px';
+
+    nextEl.innerHTML = '';
+    for (let i = 0; i < 4 * nextRows; i++) {
+        const cell = document.createElement('div');
+        cell.style.width = PREVIEW_CELL + 'px';
+        cell.style.height = PREVIEW_CELL + 'px';
+        cell.style.background = '#1a1a2e';
+        cell.style.borderRadius = '2px';
+        cell.className = 'preview-cell';
+        nextEl.appendChild(cell);
+    }
+}
+
+function drawPreview(pieceName, container, offsetIndex) {
+    const shapeData = TETROMINO_SHAPES[pieceName];
+    const color = shapeData.color;
+    // In double-size mode, use original shapes for preview (preview grid is only 4-wide)
+    const shape = (engine && engine.doubleSize && engine._originalShapes)
+        ? engine._originalShapes[pieceName]
+        : shapeData.shape;
+    const cellsPerPiece = 4 * 3;
+    const startIdx = offsetIndex * cellsPerPiece;
+
+    // Clear this piece area
+    for (let i = 0; i < cellsPerPiece; i++) {
+        const cell = container.children[startIdx + i];
+        if (!cell) continue;
+        cell.style.background = '#1a1a2e';
+        cell.style.boxShadow = 'none';
+    }
+
+    // Find bounding box
+    let minX = 99, maxX = -1, minY = 99, maxY = -1;
+    for (let y = 0; y < shape.length; y++) {
+        for (let x = 0; x < shape[y].length; x++) {
+            if (shape[y][x]) {
+                minX = Math.min(minX, x);
+                maxX = Math.max(maxX, x);
+                minY = Math.min(minY, y);
+                maxY = Math.max(maxY, y);
+            }
+        }
+    }
+    const w = maxX - minX + 1;
+    const h = maxY - minY + 1;
+    const offX = Math.floor((4 - w) / 2) - minX;
+    const offY = Math.floor((2 - h) / 2) - minY;
+
+    for (let y = 0; y < shape.length; y++) {
+        for (let x = 0; x < shape[y].length; x++) {
+            if (!shape[y][x]) continue;
+            const idx = startIdx + (y + offY) * 4 + (x + offX);
+            const cell = container.children[idx];
+            if (cell) {
+                cell.style.background = color;
+                cell.style.boxShadow = 'inset 0 0 4px rgba(0,0,0,0.4)';
+            }
+        }
+    }
+}
+
+function clearPreviewArea(container) {
+    Array.from(container.children).forEach(c => {
+        c.style.background = '#1a1a2e';
+        c.style.boxShadow = 'none';
+    });
+}
+
+function renderBoard(display) {
+    boardEl.innerHTML = '';
+    // Skip top 2 hidden rows
+    for (let y = 2; y < display.length; y++) {
+        for (let x = 0; x < display[y].length; x++) {
+            const d = display[y][x];
+            const cell = document.createElement('div');
+            cell.className = 'cell';
+            if (d.filled) {
+                cell.classList.add('filled');
+                if (d.type === 'ghost') cell.classList.add('ghost');
+                if (d.type === 'locking') cell.classList.add('locking');
+                cell.style.background = d.color;
+            }
+            boardEl.appendChild(cell);
+        }
+    }
+}
+
+// ===== Engine Callbacks =====
+function onBoardUpdate(display) {
+    renderBoard(display);
+    document.getElementById('score-val').textContent = engine.score.toLocaleString();
+    document.getElementById('lines-val').textContent = engine.lines;
+    document.getElementById('level-val').textContent = engine.level;
+}
+
+function onQueueUpdate(queue) {
+    clearPreviewArea(nextEl);
+    for (let i = 0; i < Math.min(5, queue.length); i++) {
+        drawPreview(queue[i], nextEl, i);
+    }
+}
+
+function onHoldUpdate(pieceName) {
+    clearPreviewArea(holdEl);
+    if (pieceName) drawPreview(pieceName, holdEl, 0);
+}
+
+function onGameOver(info) {
+    const over = document.getElementById('game-overlay-over');
+    document.getElementById('over-score').textContent = engine.score.toLocaleString();
+    if (info && info.reason === 'win') {
+        document.getElementById('over-title').textContent = '胜利!';
+        document.getElementById('over-title').style.color = '#FFD700';
+        document.getElementById('over-detail').textContent = info.message;
+    } else {
+        document.getElementById('over-title').textContent = '游戏结束';
+        document.getElementById('over-title').style.color = '#FF3030';
+        document.getElementById('over-detail').textContent = '已触顶';
+    }
+    over.classList.remove('hidden');
+    document.getElementById('game-overlay-pause').classList.add('hidden');
+    if (engine && Auth.isLoggedIn()) {
+        Auth.saveRecord(GAME_MODE, engine.score, JSON.stringify({
+            lines: engine.lines, level: engine.level
+        }));
+    }
+    if (speedTick) { clearInterval(speedTick); speedTick = null; }
+    engine.stop();
+}
+
+function onLineClear(cleared) {
+    // Line clear effect handled by CSS
+}
+
+// ===== Game Start =====
+function startGame() {
+    if (!Auth.isLoggedIn()) {
+        UI.showMessage('请先登录后开始游戏', 'info');
+        setTimeout(() => location.href = '/', 1500);
+        return;
+    }
+
+    document.getElementById('game-overlay-empty').classList.add('hidden');
+    document.getElementById('game-overlay-pause').classList.add('hidden');
+    document.getElementById('game-overlay-over').classList.add('hidden');
+
+    if (engine) engine.stop();
+
+    const keys = Auth.user.key_settings || {};
+    const das = Auth.user.das_settings || {};
+
+    engine = new TetrisEngine({ keys, das: das.das || 10, arr: das.arr || 2, previewCount });
+    engine.onBoardUpdate = onBoardUpdate;
+    engine.onQueueUpdate = onQueueUpdate;
+    engine.onHoldUpdate = onHoldUpdate;
+    engine.onGameOver = onGameOver;
+    engine.onLineClear = onLineClear;
+    engine.mode = GAME_MODE;
+
+    // Initialize mode
+    if (GAME_MODE === 'speed') {
+        const type = URL_PARAMS.get('type') || 'time';
+        const target = parseInt(URL_PARAMS.get('target') || '40');
+        gameMode = new SpeedMode(engine, { type, target });
+        document.getElementById('mode-display').textContent =
+            type === 'time' ? `竞速：${target}秒内消行` : `竞速：消${target}行`;
+        document.getElementById('timer-display').classList.remove('hidden');
+    } else if (GAME_MODE === 'rhythm') {
+        const bpm = parseInt(URL_PARAMS.get('bpm') || '120');
+        gameMode = new RhythmMode(engine, { bpm });
+        document.getElementById('mode-display').textContent = `节奏：${bpm} BPM`;
+    } else if (GAME_MODE === 'mutation') {
+        const mutation = URL_PARAMS.get('mutation') || 'no_gravity';
+        gameMode = new MutationMode(engine, { type: mutation });
+        if (engine.mutations.has('double_size')) {
+            engine.enableDoubleSize();
+        }
+        document.getElementById('mode-display').textContent = `变异：${gameMode.getStatus().primary}`;
+    } else {
+        gameMode = new NormalMode(engine);
+    }
+
+    // Wrap game over handler to call mode's onGameOver
+    const origOnGameOver = engine.onGameOver;
+    engine.onGameOver = function(info) {
+        if (gameMode) {
+            if (gameMode.onLineClear) {}
+        }
+        origOnGameOver(info);
+    };
+
+    // Wrap line clear handler
+    const origOnLineClear = engine.onLineClear;
+    engine.onLineClear = function(cleared) {
+        origOnLineClear(cleared);
+        if (gameMode && gameMode.onLineClear) gameMode.onLineClear(cleared);
+    };
+
+    engine.start();
+    if (gameMode && gameMode.start) gameMode.start();
+
+    // Speed mode timer
+    if (speedTick) clearInterval(speedTick);
+    speedTick = setInterval(() => {
+        if (engine && gameMode && gameMode.tick) {
+            gameMode.tick();
+            if (GAME_MODE === 'speed') {
+                const status = gameMode.getStatus();
+                document.getElementById('timer-display').textContent = status.primary;
+                document.getElementById('mode-display').textContent = status.secondary;
+            }
+        }
+    }, 100);
+}
+
+function togglePause() {
+    if (!engine) return;
+    engine.togglePause();
+    if (engine.paused) {
+        document.getElementById('game-overlay-pause').classList.remove('hidden');
+    } else {
+        document.getElementById('game-overlay-pause').classList.add('hidden');
+    }
+}
+
+function restartGame() {
+    startGame();
+}
+
+// ===== Keyboard Input =====
+function onKeyDown(e) {
+    if (e.repeat) return;
+
+    const keys = engine ? engine.keys : {
+        move_left: 'ArrowLeft', move_right: 'ArrowRight',
+        soft_drop: 'ArrowDown', hard_drop: 'Space',
+        rotate_cw: 'ArrowUp', rotate_ccw: 'KeyZ',
+        rotate_180: 'KeyA', hold: 'KeyC', pause: 'Escape',
+    };
+
+    const code = e.code;
+
+    // Always handle pause/reset
+    if (code === keys.pause) {
+        e.preventDefault();
+        if (engine && !engine.gameOver) togglePause();
+        return;
+    }
+    if (code === keys.reset) {
+        e.preventDefault();
+        if (engine && !engine.gameOver) {
+            if (UI.confirm('确认重置当前游戏？')) {
+                engine.reset();
+                document.getElementById('game-overlay-pause').classList.add('hidden');
+                document.getElementById('game-overlay-over').classList.add('hidden');
+            }
+        }
+        return;
+    }
+
+    if (!engine || engine.gameOver || engine.paused) return;
+
+    if (code === keys.hard_drop) {
+        e.preventDefault();
+        engine.hardDrop();
+    } else if (code === keys.rotate_cw) {
+        e.preventDefault();
+        engine.rotate('cw');
+    } else if (code === keys.rotate_ccw) {
+        e.preventDefault();
+        engine.rotate('ccw');
+    } else if (code === keys.rotate_180) {
+        e.preventDefault();
+        engine.rotate('180');
+    } else if (code === keys.hold) {
+        e.preventDefault();
+        engine.doHold();
+    } else if (code === keys.soft_drop) {
+        e.preventDefault();
+        engine.dasCounter.soft = 0;
+        lastKeyDowns.add('soft');
+    } else if (code === keys.move_left) {
+        e.preventDefault();
+        engine.moveLeft();
+        if (!e.repeat) {
+            engine.dasCounter.left = 0;
+            engine.dasCharged.left = false;
+        }
+        lastKeyDowns.add('left');
+    } else if (code === keys.move_right) {
+        e.preventDefault();
+        engine.moveRight();
+        if (!e.repeat) {
+            engine.dasCounter.right = 0;
+            engine.dasCharged.right = false;
+        }
+        lastKeyDowns.add('right');
+    }
+}
+
+function onKeyUp(e) {
+    const keys = engine ? engine.keys : {
+        move_left: 'ArrowLeft', move_right: 'ArrowRight',
+        soft_drop: 'ArrowDown',
+    };
+    if (e.code === keys.move_left) lastKeyDowns.delete('left');
+    if (e.code === keys.move_right) lastKeyDowns.delete('right');
+    if (e.code === keys.soft_drop) lastKeyDowns.delete('soft');
+}
+
+document.addEventListener('keydown', onKeyDown);
+document.addEventListener('keyup', onKeyUp);
+
+// DAS/ARR/SDS system
+setInterval(() => {
+    if (!engine || engine.gameOver || engine.paused) return;
+    const das = engine.das;
+    const arr = engine.arr;
+
+    if (lastKeyDowns.has('left') && !lastKeyDowns.has('right')) {
+        engine.dasCounter.left++;
+        if (engine.dasCounter.left >= das) {
+            if (!engine.dasCharged.left || arr === 0 || engine.dasCounter.left % arr === 0) {
+                engine.moveLeft();
+                engine.dasCharged.left = true;
+            }
+        }
+    }
+    if (lastKeyDowns.has('right') && !lastKeyDowns.has('left')) {
+        engine.dasCounter.right++;
+        if (engine.dasCounter.right >= das) {
+            if (!engine.dasCharged.right || arr === 0 || engine.dasCounter.right % arr === 0) {
+                engine.moveRight();
+                engine.dasCharged.right = true;
+            }
+        }
+    }
+    if (lastKeyDowns.has('soft')) {
+        engine.softDrop();
+    }
+}, 1000 / 60);
+
+// ===== Init =====
+function init() {
+    initDom();
+    if (Auth.isLoggedIn()) {
+        document.getElementById('user-info').textContent = `当前: ${Auth.user.username}`;
+    } else {
+        document.getElementById('user-info').textContent = '未登录';
+    }
+    document.getElementById('mode-display').textContent =
+        GAME_MODE === 'speed' ? '竞速模式' :
+        GAME_MODE === 'rhythm' ? '节奏模式' :
+        GAME_MODE === 'mutation' ? '变异模式' : '经典模式';
+}
+
+init();
+</script>
+</body>
+</html>
