@@ -612,6 +612,10 @@ class TetrisEngine {
         })));
 
         if (this.current && !this.gameOver) {
+            const pieceColor = this.colorOverrides && this.colorOverrides[this.currentName]
+                ? this.colorOverrides[this.currentName]
+                : TETROMINO_SHAPES[this.currentName].color;
+
             const ghostY = this.getGhostY();
             // Ghost
             for (let y = 0; y < this.current.length; y++) {
@@ -623,7 +627,7 @@ class TetrisEngine {
                         if (by !== this.currentY + y || ghostY !== this.currentY) {
                             display[by][bx] = {
                                 filled: true,
-                                color: TETROMINO_SHAPES[this.currentName].color,
+                                color: pieceColor,
                                 type: 'ghost'
                             };
                         }
@@ -641,7 +645,7 @@ class TetrisEngine {
                     if (by >= 0 && by < this.boardH && bx >= 0 && bx < this.boardW) {
                         display[by][bx] = {
                             filled: true,
-                            color: TETROMINO_SHAPES[this.currentName].color,
+                            color: pieceColor,
                             type: locking ? 'locking' : 'active'
                         };
                     }

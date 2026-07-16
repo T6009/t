@@ -45,6 +45,17 @@
             <div class="mode-desc">标准 SRS 俄罗斯方块，无限挑战</div>
         </a>
     </div>
+    <div class="leaderboard-section" id="leaderboard-section">
+        <h2>竞速40行排行榜</h2>
+        <table class="leaderboard-table" id="leaderboard-table">
+            <thead>
+                <tr><th>排名</th><th>玩家</th><th>最佳用时</th><th>分数</th></tr>
+            </thead>
+            <tbody id="leaderboard-body">
+                <tr><td colspan="4" class="text-dim">暂无数据</td></tr>
+            </tbody>
+        </table>
+    </div>
 </div>
 
 <!-- ===== Speed Config Page ===== -->
@@ -162,6 +173,13 @@
                 <span class="text-sm text-dim">个</span>
             </div>
         </div>
+        <div class="settings-section">
+            <h3>方块颜色</h3>
+            <p class="text-sm text-dim" style="margin-bottom:12px;">
+                输入十六进制颜色码（如 #FF3030）调整各方块颜色
+            </p>
+            <div id="color-settings-list"></div>
+        </div>
         <button class="btn btn-primary btn-block" onclick="saveAllSettings()">保存设置</button>
     </div>
 </div>
@@ -224,6 +242,7 @@ function showPage(name) {
 
     if (name === 'account') updateAccountPage();
     if (name === 'settings') loadSettingsPage();
+    if (name === 'home') fetchLeaderboard();
 }
 
 // Nav bar clicks
@@ -362,6 +381,31 @@ function loadSettingsPage() {
 
     window._tempKeySettings = { ...keys };
     window._tempDasSettings = { ...das };
+
+    // 加载颜色设置
+    const defaultColors = {
+        I: '#00CED1', O: '#FFD700', T: '#9932CC', S: '#32CD32',
+        Z: '#FF3030', J: '#4169E1', L: '#FF8800'
+    };
+    const currentColors = das.colors || defaultColors;
+    document.getElementById('color-settings-list').innerHTML = Object.entries(defaultColors).map(([name, defColor]) => {
+        const val = currentColors[name] || defColor;
+        return `<div class="color-row">
+            <span class="color-label">${name}</span>
+            <input type="text" class="color-input" id="color-${name}" value="${val}" maxlength="7" pattern="#[0-9a-fA-F]{6}">
+            <span class="color-preview" id="color-preview-${name}" style="background:${val}"></span>
+        </div>`;
+    }).join('');
+
+    // 绑定颜色实时预览
+    document.querySelectorAll('.color-input').forEach(inp => {
+        inp.addEventListener('input', function() {
+            const preview = document.getElementById('color-preview-' + this.id.replace('color-', ''));
+            if (/^#[0-9a-fA-F]{6}$/.test(this.value)) {
+                preview.style.background = this.value;
+            }
+        });
+    });
 }
 
 async function captureKey(action) {
@@ -382,6 +426,19 @@ async function saveAllSettings() {
     const arr = parseInt(document.getElementById('arr-slider').value);
     const preview_count = parseInt(document.getElementById('preview-slider').value);
     const dasSettings = { das, arr, preview_count };
+
+    // 收集颜色设置
+    const colors = {};
+    document.querySelectorAll('.color-input').forEach(inp => {
+        const name = inp.id.replace('color-', '');
+        const val = inp.value.trim();
+        if (/^#[0-9a-fA-F]{6}$/.test(val)) {
+            colors[name] = val;
+        }
+    });
+    if (Object.keys(colors).length > 0) {
+        dasSettings.colors = colors;
+    }
 
     const res = await Auth.saveSettings(window._tempKeySettings, dasSettings);
     // Update local user
@@ -508,6 +565,42 @@ function doLogout() {
 // ===== Init =====
 updateNav();
 showPage('home');
+
+async function fetchLeaderboard() {
+    if (!Auth.isLoggedIn()) {
+        document.getElementById('leaderboard-section').classList.add('hidden');
+        return;
+    }
+    document.getElementById('leaderboard-section').classList.remove('hidden');
+    const res = await Auth.getSpeedLeaderboard();
+    const tbody = document.getElementById('leaderboard-body');
+    if (!res.success || !res.data || res.data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-dim">暂无数据</td></tr>';
+        return;
+    }
+    tbody.innerHTML = res.data.map((r, i) => {
+        const timeStr = formatTime(r.best_time);
+        const rankIcon = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i + 1);
+        return `<tr class="${i === 0 ? 'rank-gold' : i === 1 ? 'rank-silver' : i === 2 ? 'rank-bronze' : ''}">
+            <td>${rankIcon}</td>
+            <td>${escapeHtml(r.username)}</td>
+            <td>${timeStr}</td>
+            <td>${r.best_score.toLocaleString()}</td>
+        </tr>`;
+    }).join('');
+}
+
+function formatTime(seconds) {
+    const m = Math.floor(seconds / 60);
+    const s = (seconds % 60).toFixed(1);
+    return m > 0 ? `${m}:${s.padStart(4, '0')}` : `${s}秒`;
+}
+
+function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
 </script>
 </body>
 </html>
