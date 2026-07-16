@@ -66,14 +66,14 @@ const Auth = {
         return res.json();
     },
 
-    async saveRecord(mode, score, detail = '') {
+    async saveRecord(mode, score, lines_cleared = 0, time_seconds = 0, detail = '') {
         if (!this.user) return { success: false };
         const res = await fetch(`${API_BASE}/api/records`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 username: this.user.username,
-                mode, score, detail,
+                mode, score, lines_cleared, time_seconds, detail,
             }),
         });
         return res.json();
@@ -81,6 +81,11 @@ const Auth = {
 
     async getRecords(mode) {
         const res = await fetch(`${API_BASE}/api/records?mode=${mode || ''}`);
+        return res.json();
+    },
+
+    async getSpeedLeaderboard() {
+        const res = await fetch(`${API_BASE}/api/speed_leaderboard`);
         return res.json();
     },
 

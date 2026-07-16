@@ -34,6 +34,16 @@ def init_db():
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )''')
 
+    # Migrate: add new columns if they don't exist
+    try:
+        c.execute('ALTER TABLE records ADD COLUMN lines_cleared INTEGER DEFAULT 0')
+    except:
+        pass
+    try:
+        c.execute('ALTER TABLE records ADD COLUMN time_seconds REAL DEFAULT 0')
+    except:
+        pass
+
     # Check if demo accounts exist
     c.execute('SELECT COUNT(*) FROM accounts')
     count = c.fetchone()[0]
@@ -123,13 +133,36 @@ class Database:
         conn.close()
         return True
 
-    def save_record(self, username, mode, score, detail=''):
+    def save_record(self, username, mode, score, lines_cleared=0, time_seconds=0, detail=''):
         conn = get_db()
         c = conn.cursor()
-        c.execute('INSERT INTO records (username, mode, score, detail) VALUES (?, ?, ?, ?)',
-                  (username, mode, score, detail))
+        c.execute('INSERT INTO records (username, mode, score, lines_cleared, time_seconds, detail) VALUES (?, ?, ?, ?, ?, ?)',
+                  (username, mode, score, lines_cleared, time_seconds, detail))
         conn.commit()
         conn.close()
+
+    def get_personal_best(self, username, mode):
+        """返回用户在某个模式下的个人最佳成绩 {time, lines, score} 或 None"""
+        conn = get_db()
+        c = conn.cursor()
+        c.execute('''SELECT MIN(time_seconds) as best_time, MAX(score) as best_score, MAX(lines_cleared) as best_lines
+            FROM records WHERE username = ? AND mode = ? AND time_seconds > 0''', (username, mode))
+        row = c.fetchone()
+        conn.close()
+        if row and row['best_time'] is not None:
+            return {'time': row['best_time'], 'score': row['best_score'], 'lines': row['best_lines']}
+        return None
+
+    def get_speed_leaderboard(self, limit=50):
+        """竞速40行排行榜：每人最短用时排名"""
+        conn = get_db()
+        c = conn.cursor()
+        c.execute('''SELECT username, MIN(time_seconds) as best_time, MAX(score) as best_score
+            FROM records WHERE mode = 'speed' AND time_seconds > 0
+            GROUP BY username ORDER BY best_time ASC LIMIT ?''', (limit,))
+        rows = [dict(r) for r in c.fetchall()]
+        conn.close()
+        return rows
 
     def get_records(self, username=None, mode=None, limit=50):
         conn = get_db()

@@ -89,6 +89,7 @@ class TetrisEngine {
         this.visibleH = 20;
         this.board = this.createBoard();
         this.colorBoard = this.createBoard(); // stores color per cell
+        this.colorOverrides = options.colors || null;
 
         this.current = null;
         this.currentX = 0;
@@ -760,6 +761,11 @@ class TetrisEngine {
             TETROMINO_SHAPES[key].shape = DOUBLE_SIZE_SHAPES[key].shape;
         }
         this.doubleSize = true;
+    }
+
+    setColors(colors) {
+        this.colorOverrides = colors;
+        this.render();
     }
 
     // ---- Render ----

@@ -129,12 +129,23 @@ def save_record():
     mode = data.get('mode', '')
     score = data.get('score', 0)
     detail = data.get('detail', '')
+    lines_cleared = data.get('lines_cleared', 0)
+    time_seconds = data.get('time_seconds', 0)
 
     if not username or not mode:
         return jsonify({'success': False, 'message': '参数错误'})
 
-    db.save_record(username, mode, score, detail)
-    return jsonify({'success': True, 'message': '记录已保存'})
+    db.save_record(username, mode, score, lines_cleared, time_seconds, detail)
+
+    # 竞速模式检查个人最佳
+    is_new_pb = False
+    old_best = None
+    if mode == 'speed' and time_seconds > 0:
+        old_best = db.get_personal_best(username, mode)
+        if old_best and time_seconds < old_best['time']:
+            is_new_pb = True
+
+    return jsonify({'success': True, 'message': '记录已保存', 'is_new_pb': is_new_pb, 'old_best': old_best})
 
 
 @app.route('/api/records', methods=['GET'])
@@ -143,6 +154,12 @@ def get_records():
     mode = request.args.get('mode')
     records = db.get_records(username, mode)
     return jsonify({'success': True, 'data': records})
+
+
+@app.route('/api/speed_leaderboard', methods=['GET'])
+def speed_leaderboard():
+    data = db.get_speed_leaderboard()
+    return jsonify({'success': True, 'data': data})
 
 
 if __name__ == '__main__':

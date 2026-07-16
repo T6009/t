@@ -251,9 +251,27 @@ function onGameOver(info) {
     over.classList.remove('hidden');
     document.getElementById('game-overlay-pause').classList.add('hidden');
     if (engine && Auth.isLoggedIn()) {
-        Auth.saveRecord(GAME_MODE, engine.score, JSON.stringify({
-            lines: engine.lines, level: engine.level
-        }));
+        if (GAME_MODE === 'speed' && gameMode) {
+            const elapsed = gameMode.elapsed;
+            const lines = engine.lines;
+            const score = engine.score;
+            Auth.saveRecord('speed', score, lines, elapsed, JSON.stringify({
+                lines, level: engine.level,
+                type: gameMode.type,
+                target: gameMode.target,
+            })).then(res => {
+                if (res.is_new_pb) {
+                    const oldTime = res.old_best ? res.old_best.time.toFixed(1) : '--';
+                    document.getElementById('over-detail').textContent =
+                        `突破个人最佳！${elapsed.toFixed(1)}秒（原纪录：${oldTime}秒）`;
+                    document.getElementById('over-detail').style.color = '#FFD700';
+                }
+            });
+        } else {
+            Auth.saveRecord(GAME_MODE, engine.score, engine.lines, 0, JSON.stringify({
+                lines: engine.lines, level: engine.level
+            }));
+        }
     }
     if (speedTick) { clearInterval(speedTick); speedTick = null; }
     engine.stop();
@@ -281,6 +299,9 @@ function startGame() {
     const das = Auth.user.das_settings || {};
 
     engine = new TetrisEngine({ keys, das: das.das || 10, arr: das.arr || 2, previewCount });
+    if (das && das.colors) {
+        engine.setColors(das.colors);
+    }
     engine.onBoardUpdate = onBoardUpdate;
     engine.onQueueUpdate = onQueueUpdate;
     engine.onHoldUpdate = onHoldUpdate;
