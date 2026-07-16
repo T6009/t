@@ -4,58 +4,102 @@
 
 ### 表结构
 
-#### users
+#### accounts
 
 | 字段 | 类型 | 约束 | 说明 |
 |------|------|------|------|
 | id | INTEGER | PRIMARY KEY AUTOINCREMENT | 用户 ID |
 | username | TEXT | NOT NULL UNIQUE | 用户名 |
-| password_hash | TEXT | NOT NULL | SHA-256 密码哈希 |
-| display_name | TEXT | DEFAULT NULL | 显示名称 |
-| key_settings | TEXT | DEFAULT NULL | 按键设置 JSON |
-| das_settings | TEXT | DEFAULT NULL | DAS/ARR 设置 JSON |
-| created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 注册时间 |
-| updated_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 最后更新时间 |
+| password_hash | TEXT | NOT NULL | bcrypt 密码哈希 |
+| key_settings | TEXT | DEFAULT '{}' | 按键设置 JSON |
+| das_settings | TEXT | DEFAULT '{}' | DAS/ARR/预览数量 JSON |
+| color_settings | TEXT | DEFAULT '{}' | 方块颜色 JSON |
+| role | TEXT | DEFAULT 'user' | 角色（user / admin） |
+| is_banned | INTEGER | DEFAULT 0 | 是否被封禁 |
 
-#### scores
+#### records
 
 | 字段 | 类型 | 约束 | 说明 |
 |------|------|------|------|
 | id | INTEGER | PRIMARY KEY AUTOINCREMENT | 记录 ID |
-| user_id | INTEGER | FOREIGN KEY → users.id | 用户 |
+| username | TEXT | NOT NULL | 用户名 |
 | mode | TEXT | NOT NULL | 游戏模式（normal/speed/rhythm/mutation） |
 | score | INTEGER | NOT NULL | 得分 |
-| lines | INTEGER | DEFAULT 0 | 消除行数 |
+| lines_cleared | INTEGER | DEFAULT 0 | 消除行数 |
 | time_seconds | REAL | DEFAULT 0 | 游戏时长 |
-| details | TEXT | DEFAULT NULL | 扩展信息 JSON |
-| played_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 游戏时间 |
+| detail | TEXT | DEFAULT NULL | 扩展信息 JSON |
+| created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 记录时间 |
+
+#### login_logs
+
+| 字段 | 类型 | 约束 | 说明 |
+|------|------|------|------|
+| id | INTEGER | PRIMARY KEY AUTOINCREMENT | 日志 ID |
+| username | TEXT | NOT NULL | 用户名 |
+| ip_address | TEXT | NOT NULL | 客户端 IP 地址 |
+| login_time | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 登录时间 |
+
+#### ip_links
+
+| 字段 | 类型 | 约束 | 说明 |
+|------|------|------|------|
+| id | INTEGER | PRIMARY KEY AUTOINCREMENT | 关联 ID |
+| ip_address | TEXT | NOT NULL | IP 地址 |
+| username1 | TEXT | NOT NULL | 账号1（字母序较小） |
+| username2 | TEXT | NOT NULL | 账号2（字母序较大） |
+| created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 确认时间 |
 
 ### ER 关系图（文本描述）
 
 ```
 ┌──────────────────────┐         ┌──────────────────────┐
-│        users         │         │        scores        │
+│       accounts       │         │       records        │
 ├──────────────────────┤         ├──────────────────────┤
-│ id           PK      │◄────────│ user_id      FK      │
-│ username     UNIQUE  │   1:N   │ mode          TEXT   │
-│ password_hash TEXT   │         │ score         INT    │
-│ display_name TEXT    │         │ lines         INT    │
-│ key_settings  JSON   │         │ time_seconds  REAL   │
-│ das_settings  JSON   │         │ details       JSON   │
-│ created_at    TS     │         │ played_at     TS     │
-│ updated_at    TS     │         └──────────────────────┘
+│ id           PK      │         │ id            PK     │
+│ username     UNIQUE  │───1:N───│ username      TEXT   │
+│ password_hash TEXT   │         │ mode          TEXT   │
+│ key_settings  JSON   │         │ score         INT    │
+│ das_settings  JSON   │         │ lines_cleared INT    │
+│ color_settings JSON  │         │ time_seconds  REAL   │
+│ role          TEXT   │         │ detail        TEXT   │
+│ is_banned     INT    │         │ created_at    TS     │
+└──────────────────────┘         └──────────────────────┘
+            │
+            │ 1:N
+            ▼
+┌──────────────────────┐
+│      login_logs      │
+├──────────────────────┤
+│ id            PK     │
+│ username      TEXT   │
+│ ip_address    TEXT   │
+│ login_time    TS     │
+└──────────────────────┘
+
+┌──────────────────────┐         ┌──────────────────────┐
+│       ip_links       │  记录同 IP 下   │     accounts         │
+├──────────────────────┤  用户两两关联  ├──────────────────────┤
+│ id            PK     │◄────────────►│  username  UNIQUE   │
+│ ip_address    TEXT   │  (N:M 通过    └──────────────────────┘
+│ username1     TEXT   │   ip_links)
+│ username2     TEXT   │
+│ created_at    TS     │
 └──────────────────────┘
 ```
 
 ### 关键索引
 
-- `users.username` — UNIQUE 索引（登录查询）
-- `scores.user_id` — 外键索引（用户战绩查询）
-- `scores.mode` — 普通索引（按模式筛选）
+- `accounts.username` — UNIQUE 索引（登录查询）
+- `records.username` — 索引（用户战绩查询）
+- `records.mode` — 索引（按模式筛选）
 
 ### 默认演示账号
 
-| username | password（明文） | key_settings | das_settings |
-|----------|------------------|--------------|--------------|
-| demo | demo123 | 系统默认按键 | das=10, arr=2, preview_count=5 |
+| username | password | role | 说明 |
+|----------|----------|------|------|
+| Player1 | 111111 | user | 演示账号 |
+| DemoUser | 222222 | user | 演示账号 |
+| TestPlayer | 333333 | user | 演示账号 |
+| admin | admin123456 | admin | 管理员账号 |
+
 *（内容由AI生成，仅供参考）*

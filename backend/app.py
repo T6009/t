@@ -54,7 +54,8 @@ def login():
     if not username or not password:
         return jsonify({'success': False, 'message': '请输入用户名和密码'})
 
-    success, result = db.login(username, password)
+    ip = request.remote_addr or ''
+    success, result = db.login(username, password, ip)
     if success:
         return jsonify({'success': True, 'data': result})
     return jsonify({'success': False, 'message': result})
@@ -82,6 +83,20 @@ def check_username():
     username = data.get('username', '').strip()
     exists = db.check_username(username)
     return jsonify({'exists': exists})
+
+
+@app.route('/api/confirm_ip_link', methods=['POST'])
+def confirm_ip_link():
+    data = request.json
+    username = data.get('username', '')
+    other_username = data.get('other_username', '')
+    ip = request.remote_addr or ''
+
+    if not username or not other_username:
+        return jsonify({'success': False, 'message': '参数错误'})
+
+    db.confirm_ip_link(ip, username, other_username)
+    return jsonify({'success': True})
 
 
 # ---- Settings Routes ----

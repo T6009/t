@@ -486,9 +486,33 @@ async function doLogin() {
 
     const res = await Auth.login(username, password);
     if (res.success) {
-        UI.showMessage('登录成功', 'success');
-        updateAccountPage();
-        updateNav();
+        // 检测同 IP 小号警告
+        if (res.data && res.data.ip_warning) {
+            const otherUser = res.data.ip_warning;
+            const confirmed = confirm(
+                `⚠️ 游戏不提倡开小号，你确认这不是自己的小号？\n\n` +
+                `检测到当前账号「${username}」与「${otherUser}」使用过相同的 IP 地址。`
+            );
+            if (confirmed) {
+                // 确认：记录 IP 关联，继续登录
+                await fetch('/api/confirm_ip_link', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, other_username: otherUser }),
+                });
+                UI.showMessage('登录成功', 'success');
+                updateAccountPage();
+                updateNav();
+            } else {
+                // 取消：退出登录，不记录 IP 关联
+                Auth.logout();
+                UI.showMessage('已退出登录', 'info');
+            }
+        } else {
+            UI.showMessage('登录成功', 'success');
+            updateAccountPage();
+            updateNav();
+        }
     } else {
         UI.showMessage(res.message, 'error');
     }

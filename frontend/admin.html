@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>俄罗斯方块 - 管理后台</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, 'Microsoft YaHei', sans-serif; background: #0a0e17; color: #e0e0e0; min-height: 100vh; }
+.hidden { display: none !important; }
+a { color: #4fc3f7; text-decoration: none; }
+
+/* Login */
+.login-page { display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+.login-box { background: #111827; border: 1px solid #1e293b; border-radius: 12px; padding: 40px; width: 380px; }
+.login-box h1 { text-align: center; font-size: 24px; margin-bottom: 8px; color: #fff; }
+.login-box .sub { text-align: center; color: #94a3b8; margin-bottom: 24px; font-size: 14px; }
+.form-group { margin-bottom: 16px; }
+.form-group label { display: block; margin-bottom: 6px; font-size: 13px; color: #94a3b8; }
+.form-group input { width: 100%; padding: 10px 12px; border: 1px solid #334155; border-radius: 6px; background: #0f172a; color: #e0e0e0; font-size: 14px; }
+.form-group input:focus { outline: none; border-color: #4fc3f7; }
+.btn { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600; transition: all .15s; }
+.btn-primary { background: #2563eb; color: #fff; width: 100%; }
+.btn-primary:hover { background: #1d4ed8; }
+.btn-danger { background: #dc2626; color: #fff; }
+.btn-danger:hover { background: #b91c1c; }
+.btn-outline { background: transparent; border: 1px solid #475569; color: #e0e0e0; }
+.btn-outline:hover { background: #1e293b; }
+.btn-sm { padding: 5px 12px; font-size: 12px; }
+.msg { margin-top: 12px; padding: 8px 0; text-align: center; font-size: 13px; }
+.msg-error { color: #f87171; }
+.msg-success { color: #4ade80; }
+
+/* Dashboard */
+.dashboard { display: flex; height: 100vh; }
+.sidebar { width: 220px; background: #111827; border-right: 1px solid #1e293b; padding: 20px 0; display: flex; flex-direction: column; }
+.sidebar h2 { padding: 0 20px 20px; font-size: 18px; color: #fff; border-bottom: 1px solid #1e293b; }
+.sidebar a { display: block; padding: 12px 20px; color: #94a3b8; font-size: 14px; transition: all .15s; }
+.sidebar a:hover, .sidebar a.active { background: #1e293b; color: #fff; }
+.sidebar .logout { margin-top: auto; padding: 20px; border-top: 1px solid #1e293b; }
+.main { flex: 1; overflow-y: auto; padding: 30px; }
+.main h2 { font-size: 20px; margin-bottom: 20px; color: #fff; }
+
+/* Tables */
+table { width: 100%; border-collapse: collapse; background: #111827; border-radius: 8px; overflow: hidden; }
+th, td { padding: 10px 14px; text-align: left; border-bottom: 1px solid #1e293b; font-size: 13px; }
+th { background: #1e293b; color: #94a3b8; font-weight: 600; }
+tr:hover { background: #1a2235; }
+.rank-gold td { background: #3d2e00; }
+.rank-silver td { background: #2a3340; }
+.rank-bronze td { background: #3a2318; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; }
+.badge-banned { background: #7f1d1d; color: #fca5a5; }
+.badge-active { background: #14532d; color: #86efac; }
+.color-dot { display: inline-block; width: 14px; height: 14px; border-radius: 3px; margin-right: 2px; vertical-align: middle; border: 1px solid #334155; }
+.color-group { display: flex; flex-wrap: wrap; gap: 2px; }
+.das-badge { display: inline-block; padding: 2px 6px; background: #1e293b; border-radius: 4px; margin: 1px; font-size: 11px; }
+.ip-list { display: flex; flex-wrap: wrap; gap: 2px; }
+.ip-badge { display: inline-block; padding: 1px 6px; background: #1e293b; border: 1px solid #334155; border-radius: 4px; font-size: 11px; color: #94a3b8; }
+.reset-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 100; }
+.reset-box { background: #111827; border: 1px solid #334155; border-radius: 12px; padding: 24px; width: 360px; }
+.reset-box h3 { margin-bottom: 12px; color: #fff; }
+.text-dim { color: #64748b; }
+.text-sm { font-size: 12px; }
+.mt-8 { margin-top: 8px; }
+.mt-16 { margin-top: 16px; }
+</style>
+</head>
+<body>
+
+<!-- Login Page -->
+<div id="login-page" class="login-page">
+  <div class="login-box">
+    <h1>管理后台</h1>
+    <p class="sub">俄罗斯方块 · 管理员登录</p>
+    <div class="form-group">
+      <label>管理员账号</label>
+      <input type="text" id="login-username" placeholder="admin">
+    </div>
+    <div class="form-group">
+      <label>密码</label>
+      <input type="password" id="login-password" placeholder="管理员密码" onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <button class="btn btn-primary" onclick="doLogin()">登录</button>
+    <div id="login-msg" class="msg hidden"></div>
+  </div>
+</div>
+
+<!-- Dashboard -->
+<div id="dashboard" class="dashboard hidden">
+  <div class="sidebar">
+    <h2>管理后台</h2>
+    <a href="#" class="active" data-tab="leaderboard" onclick="switchTab('leaderboard')">排行榜</a>
+    <a href="#" data-tab="accounts" onclick="switchTab('accounts')">账号管理</a>
+    <div class="logout">
+      <button class="btn btn-outline" style="width:100%" onclick="doLogout()">退出登录</button>
+    </div>
+  </div>
+  <div class="main">
+    <!-- Leaderboard Tab -->
+    <div id="tab-leaderboard">
+      <h2>竞速40行排行榜</h2>
+      <table>
+        <thead><tr><th>排名</th><th>玩家</th><th>最佳用时</th><th>分数</th></tr></thead>
+        <tbody id="lb-tbody"><tr><td colspan="4" class="text-dim">暂无数据</td></tr></tbody>
+      </table>
+    </div>
+
+    <!-- Accounts Tab -->
+    <div id="tab-accounts" class="hidden">
+      <h2>账号注册情况</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th><th>用户名</th><th>状态</th><th>40行最佳</th>
+            <th>DAS / ARR</th><th>预览数</th><th>方块颜色</th>
+            <th>登录IP</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="acc-tbody"><tr><td colspan="9" class="text-dim">暂无数据</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Reset Password Modal -->
+<div id="reset-modal" class="reset-modal hidden">
+  <div class="reset-box">
+    <h3>重置密码 - <span id="reset-username"></span></h3>
+    <div class="form-group">
+      <label>新密码（至少6位）</label>
+      <input type="text" id="reset-new-password" value="123456" placeholder="新密码">
+    </div>
+    <p class="text-dim text-sm mt-8">默认重置为 123456</p>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button class="btn btn-primary" onclick="doResetPassword()">确认重置</button>
+      <button class="btn btn-outline" onclick="closeResetModal()">取消</button>
+    </div>
+    <div id="reset-msg" class="msg hidden"></div>
+  </div>
+</div>
+
+<script>
+// ===== Auth =====
+async function doLogin() {
+  const username = document.getElementById('login-username').value.trim();
+  const password = document.getElementById('login-password').value;
+  const msgEl = document.getElementById('login-msg');
+
+  if (!username || !password) {
+    msgEl.className = 'msg msg-error'; msgEl.textContent = '请填写完整'; msgEl.classList.remove('hidden'); return;
+  }
+
+  const res = await fetch('/api/admin/login', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({username, password})
+  });
+  const data = await res.json();
+
+  if (data.success) {
+    document.getElementById('login-page').classList.add('hidden');
+    document.getElementById('dashboard').classList.remove('hidden');
+    loadLeaderboard();
+  } else {
+    msgEl.className = 'msg msg-error'; msgEl.textContent = data.message; msgEl.classList.remove('hidden');
+  }
+}
+
+async function doLogout() {
+  await fetch('/api/admin/logout', {method:'POST'});
+  document.getElementById('login-page').classList.remove('hidden');
+  document.getElementById('dashboard').classList.add('hidden');
+}
+
+async function checkSession() {
+  const res = await fetch('/api/admin/check');
+  const data = await res.json();
+  if (data.success) {
+    document.getElementById('login-page').classList.add('hidden');
+    document.getElementById('dashboard').classList.remove('hidden');
+    loadLeaderboard();
+  }
+}
+
+// ===== Tabs =====
+function switchTab(tab) {
+  document.getElementById('tab-leaderboard').classList.toggle('hidden', tab !== 'leaderboard');
+  document.getElementById('tab-accounts').classList.toggle('hidden', tab !== 'accounts');
+  document.querySelectorAll('.sidebar a[data-tab]').forEach(a => a.classList.toggle('active', a.dataset.tab === tab));
+  if (tab === 'leaderboard') loadLeaderboard();
+  if (tab === 'accounts') loadAccounts();
+}
+
+// ===== Data Loading =====
+function formatTime(seconds) {
+  if (!seconds && seconds !== 0) return '-';
+  const m = Math.floor(seconds / 60);
+  const s = (seconds % 60).toFixed(1);
+  return m > 0 ? `${m}:${s.padStart(4, '0')}` : `${s}秒`;
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+async function loadLeaderboard() {
+  const res = await fetch('/api/admin/leaderboard');
+  const data = await res.json();
+  const tbody = document.getElementById('lb-tbody');
+
+  if (res.status === 401 || !data.success) {
+    location.reload(); return;
+  }
+
+  if (!data.data || data.data.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="4" class="text-dim">暂无数据</td></tr>'; return;
+  }
+
+  tbody.innerHTML = data.data.map((r, i) => {
+    const rankIcon = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i + 1);
+    const cls = i === 0 ? 'rank-gold' : i === 1 ? 'rank-silver' : i === 2 ? 'rank-bronze' : '';
+    return `<tr class="${cls}">
+      <td>${rankIcon}</td>
+      <td>${escapeHtml(r.username)}</td>
+      <td>${formatTime(r.best_time)}</td>
+      <td>${r.best_score.toLocaleString()}</td>
+    </tr>`;
+  }).join('');
+}
+
+const PIECE_NAMES = ['I', 'O', 'T', 'S', 'Z', 'J', 'L'];
+const PIECE_LABELS = {I:'I', O:'O', T:'T', S:'S', Z:'Z', J:'J', L:'L'};
+
+async function loadAccounts() {
+  const res = await fetch('/api/admin/accounts');
+  const data = await res.json();
+  const tbody = document.getElementById('acc-tbody');
+
+  if (res.status === 401 || !data.success) {
+    location.reload(); return;
+  }
+
+  if (!data.data || data.data.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="9" class="text-dim">暂无数据</td></tr>'; return;
+  }
+
+  tbody.innerHTML = data.data.map(r => {
+    const das = (r.das_settings && r.das_settings.das) ? r.das_settings.das : '-';
+    const arr = (r.das_settings && r.das_settings.arr) ? r.das_settings.arr : '-';
+    const preview = (r.das_settings && r.das_settings.preview_count) ? r.das_settings.preview_count : '-';
+    const banned = r.is_banned ? '<span class="badge badge-banned">已封禁</span>' : '<span class="badge badge-active">正常</span>';
+    const bestTime = r.best_time ? formatTime(r.best_time) : '-';
+    const bestScore = r.best_score ? r.best_score.toLocaleString() : '-';
+
+    let colorHtml = '<span class="text-dim">默认</span>';
+    if (r.color_settings && Object.keys(r.color_settings).length > 0) {
+      colorHtml = '<div class="color-group">' +
+        PIECE_NAMES.map(p => {
+          const c = r.color_settings[p];
+          return c ? `<span class="color-dot" title="${PIECE_LABELS[p]}: ${c}" style="background:${c}"></span>`
+                    : '';
+        }).join('') +
+        '</div>';
+    }
+
+    // 登录IP 列表（按登录时间倒序，取最近3个；超过折叠展开）
+    const ips = r.login_ips || [];
+    let ipHtml = '<span class="text-dim">无</span>';
+    if (ips.length > 0) {
+      const shown = ips.slice(0, 3).map(ip => `<span class="ip-badge">${escapeHtml(ip)}</span>`).join(' ');
+      const more = ips.length > 3 ? ` <span class="text-dim">+${ips.length - 3}</span>` : '';
+      ipHtml = `<div class="ip-list">${shown}${more}</div>`;
+    }
+
+    const banText = r.is_banned ? '解封' : '封禁';
+    const banClass = r.is_banned ? 'btn-outline' : 'btn-danger';
+
+    return `<tr>
+      <td>${r.id}</td>
+      <td>${escapeHtml(r.username)}${banned}</td>
+      <td>${banned}</td>
+      <td>${bestTime} / ${bestScore}</td>
+      <td><span class="das-badge">DAS:${das}</span> <span class="das-badge">ARR:${arr}</span></td>
+      <td>${preview}</td>
+      <td>${colorHtml}</td>
+      <td style="font-size:12px">${ipHtml}</td>
+      <td>
+        <button class="btn btn-primary btn-sm" onclick="openResetModal('${escapeHtml(r.username)}')">重置密码</button>
+        <button class="btn ${banClass} btn-sm" onclick="toggleBan('${escapeHtml(r.username)}')">${banText}</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// ===== Reset Password =====
+let currentResetUser = '';
+function openResetModal(username) {
+  currentResetUser = username;
+  document.getElementById('reset-username').textContent = username;
+  document.getElementById('reset-new-password').value = '123456';
+  document.getElementById('reset-modal').classList.remove('hidden');
+  document.getElementById('reset-msg').classList.add('hidden');
+}
+
+function closeResetModal() {
+  document.getElementById('reset-modal').classList.add('hidden');
+}
+
+async function doResetPassword() {
+  const newPw = document.getElementById('reset-new-password').value.trim();
+  const msgEl = document.getElementById('reset-msg');
+  if (!newPw || newPw.length < 6) {
+    msgEl.className = 'msg msg-error'; msgEl.textContent = '密码至少6位'; msgEl.classList.remove('hidden'); return;
+  }
+
+  const res = await fetch('/api/admin/reset_password', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({username: currentResetUser, new_password: newPw})
+  });
+  const data = await res.json();
+  if (data.success) {
+    msgEl.className = 'msg msg-success'; msgEl.textContent = '密码已重置'; msgEl.classList.remove('hidden');
+    setTimeout(closeResetModal, 1200);
+  } else {
+    msgEl.className = 'msg msg-error'; msgEl.textContent = data.message; msgEl.classList.remove('hidden');
+  }
+}
+
+async function toggleBan(username) {
+  if (!confirm(`确定要封禁/解封账号「${username}」吗？`)) return;
+  const res = await fetch('/api/admin/ban', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({username})
+  });
+  const data = await res.json();
+  if (data.success) {
+    alert(data.message);
+    loadAccounts();
+    loadLeaderboard();
+  } else {
+    alert(data.message);
+  }
+}
+
+// Init
+checkSession();
+</script>
+</body>
+</html>
