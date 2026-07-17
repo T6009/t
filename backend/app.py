@@ -3,7 +3,7 @@ from flask_cors import CORS
 from database import Database, init_db
 import os
 
-app = Flask(__name__, static_folder='../frontend', static_url_path='')
+app = Flask(__name__, static_folder='frontend', static_url_path='')
 CORS(app)
 db = Database()
 
@@ -177,6 +177,25 @@ def speed_leaderboard():
     return jsonify({'success': True, 'data': data})
 
 
+# ---- Announcement Routes ----
+
+@app.route('/api/announcements', methods=['GET'])
+def get_announcements():
+    """返回所有已发布且未撤回的公告列表，按时间倒序"""
+    announcements = db.get_announcements(include_revoked=False)
+    return jsonify({'success': True, 'data': announcements})
+
+
+@app.route('/api/announcements/<int:aid>', methods=['GET'])
+def get_announcement(aid):
+    """返回单条公告详情"""
+    announcements = db.get_announcements(include_revoked=False)
+    for a in announcements:
+        if a['id'] == aid:
+            return jsonify({'success': True, 'data': a})
+    return jsonify({'success': False, 'message': '公告不存在或已撤回'})
+
+
 if __name__ == '__main__':
     init_db()
-    app.run(host='127.0.0.1', port=8765, debug=True)
+    app.run(host='0.0.0.0', port=9046, debug=False)

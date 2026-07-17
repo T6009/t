@@ -64,6 +64,14 @@ html, body {
     color: var(--text);
     background: rgba(255,255,255,0.08);
 }
+.nav-bar a.nav-announce {
+    color: #ffcc00;
+    font-weight: 600;
+}
+.nav-bar a.nav-announce:hover {
+    color: #ffdd44;
+    background: rgba(255,204,0,0.1);
+}
 .nav-bar .user-info {
     margin-left: auto;
     color: var(--accent2);
@@ -86,6 +94,73 @@ html, body {
     color: var(--text-dim);
     margin-bottom: 50px;
     font-size: 1.05em;
+}
+.announce-banner {
+    max-width: 620px;
+    margin: 0 auto 24px;
+    background: rgba(255,204,0,0.08);
+    border: 1px solid rgba(255,204,0,0.25);
+    border-radius: 8px;
+    text-align: left;
+    transition: all 0.2s;
+    overflow: hidden;
+}
+.announce-banner:hover {
+    background: rgba(255,204,0,0.12);
+    border-color: rgba(255,204,0,0.4);
+}
+.announce-banner-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 20px;
+    cursor: pointer;
+    user-select: none;
+}
+.announce-icon {
+    font-size: 1.1em;
+    flex-shrink: 0;
+}
+.announce-banner-header span:nth-child(2) {
+    color: #ffcc00;
+    font-weight: 600;
+    font-size: 1em;
+    flex: 1;
+}
+.announce-arrow {
+    color: rgba(255,204,0,0.6);
+    font-size: 0.7em;
+    transition: transform 0.2s;
+    flex-shrink: 0;
+}
+.announce-banner.expanded .announce-arrow {
+    transform: rotate(180deg);
+}
+.announce-banner-body {
+    padding: 0 20px 16px;
+    border-top: 1px solid rgba(255,204,0,0.15);
+}
+.announce-banner-content {
+    color: #c0c0c0;
+    line-height: 1.7;
+    font-size: 0.95em;
+    padding: 12px 0;
+    white-space: pre-wrap;
+}
+.announce-banner-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.8em;
+    color: var(--text-dim);
+}
+.announce-view-all {
+    color: var(--accent);
+    text-decoration: none;
+    font-size: 0.85em;
+}
+.announce-view-all:hover {
+    text-decoration: underline;
 }
 .mode-grid {
     display: grid;

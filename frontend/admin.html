@@ -24,9 +24,14 @@ a { color: #4fc3f7; text-decoration: none; }
 .btn-primary:hover { background: #1d4ed8; }
 .btn-danger { background: #dc2626; color: #fff; }
 .btn-danger:hover { background: #b91c1c; }
+.btn-warning { background: #b45309; color: #fff; }
+.btn-warning:hover { background: #92400e; }
+.btn-success-outline { background: transparent; border: 1px solid #16a34a; color: #4ade80; }
+.btn-success-outline:hover { background: #14532d; }
 .btn-outline { background: transparent; border: 1px solid #475569; color: #e0e0e0; }
 .btn-outline:hover { background: #1e293b; }
 .btn-sm { padding: 5px 12px; font-size: 12px; }
+.action-btns { display: flex; gap: 6px; flex-wrap: wrap; }
 .msg { margin-top: 12px; padding: 8px 0; text-align: center; font-size: 13px; }
 .msg-error { color: #f87171; }
 .msg-success { color: #4ade80; }
@@ -64,6 +69,7 @@ tr:hover { background: #1a2235; }
 .text-sm { font-size: 12px; }
 .mt-8 { margin-top: 8px; }
 .mt-16 { margin-top: 16px; }
+.tr-revoked td { color: #64748b; text-decoration: line-through; background: #1a1a1a; }
 </style>
 </head>
 <body>
@@ -92,6 +98,7 @@ tr:hover { background: #1a2235; }
     <h2>管理后台</h2>
     <a href="#" class="active" data-tab="leaderboard" onclick="switchTab('leaderboard')">排行榜</a>
     <a href="#" data-tab="accounts" onclick="switchTab('accounts')">账号管理</a>
+    <a href="#" data-tab="announcements" onclick="switchTab('announcements')">公告管理</a>
     <div class="logout">
       <button class="btn btn-outline" style="width:100%" onclick="doLogout()">退出登录</button>
     </div>
@@ -101,8 +108,8 @@ tr:hover { background: #1a2235; }
     <div id="tab-leaderboard">
       <h2>竞速40行排行榜</h2>
       <table>
-        <thead><tr><th>排名</th><th>玩家</th><th>最佳用时</th><th>分数</th></tr></thead>
-        <tbody id="lb-tbody"><tr><td colspan="4" class="text-dim">暂无数据</td></tr></tbody>
+        <thead><tr><th>排名</th><th>玩家</th><th>最佳用时</th><th>分数</th><th>操作</th></tr></thead>
+        <tbody id="lb-tbody"><tr><td colspan="5" class="text-dim">暂无数据</td></tr></tbody>
       </table>
     </div>
 
@@ -119,6 +126,31 @@ tr:hover { background: #1a2235; }
           </tr>
         </thead>
         <tbody id="acc-tbody"><tr><td colspan="9" class="text-dim">暂无数据</td></tr></tbody>
+      </table>
+    </div>
+
+    <!-- Announcements Tab -->
+    <div id="tab-announcements" class="hidden">
+      <h2>发布公告</h2>
+      <div style="background:#111827;border:1px solid #1e293b;border-radius:8px;padding:20px;margin-bottom:24px;">
+        <div class="form-group">
+          <label>公告标题</label>
+          <input type="text" id="ann-title" placeholder="请输入公告标题">
+        </div>
+        <div class="form-group">
+          <label>公告正文</label>
+          <textarea id="ann-content" rows="5" placeholder="请输入公告正文" style="width:100%;padding:10px 12px;border:1px solid #334155;border-radius:6px;background:#0f172a;color:#e0e0e0;font-size:14px;resize:vertical;font-family:inherit;"></textarea>
+        </div>
+        <button class="btn btn-primary" onclick="submitAnnouncement()" style="width:auto">发布公告</button>
+        <span id="ann-msg" class="msg hidden" style="margin-left:12px;display:inline-block;"></span>
+      </div>
+
+      <h2 style="margin-bottom:16px;">公告列表</h2>
+      <table>
+        <thead>
+          <tr><th>ID</th><th>标题</th><th>内容摘要</th><th>发布者</th><th>发布时间</th><th>状态</th><th>操作</th></tr>
+        </thead>
+        <tbody id="ann-tbody"><tr><td colspan="7" class="text-dim">暂无数据</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -187,9 +219,11 @@ async function checkSession() {
 function switchTab(tab) {
   document.getElementById('tab-leaderboard').classList.toggle('hidden', tab !== 'leaderboard');
   document.getElementById('tab-accounts').classList.toggle('hidden', tab !== 'accounts');
+  document.getElementById('tab-announcements').classList.toggle('hidden', tab !== 'announcements');
   document.querySelectorAll('.sidebar a[data-tab]').forEach(a => a.classList.toggle('active', a.dataset.tab === tab));
   if (tab === 'leaderboard') loadLeaderboard();
   if (tab === 'accounts') loadAccounts();
+  if (tab === 'announcements') loadAnnouncements();
 }
 
 // ===== Data Loading =====
@@ -216,7 +250,7 @@ async function loadLeaderboard() {
   }
 
   if (!data.data || data.data.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="4" class="text-dim">暂无数据</td></tr>'; return;
+    tbody.innerHTML = '<tr><td colspan="5" class="text-dim">暂无数据</td></tr>'; return;
   }
 
   tbody.innerHTML = data.data.map((r, i) => {
@@ -227,6 +261,7 @@ async function loadLeaderboard() {
       <td>${escapeHtml(r.username)}</td>
       <td>${formatTime(r.best_time)}</td>
       <td>${r.best_score.toLocaleString()}</td>
+      <td><button class="btn btn-danger btn-sm" onclick="deleteLeaderboard('${escapeHtml(r.username)}')">删除</button></td>
     </tr>`;
   }).join('');
 }
@@ -248,9 +283,9 @@ async function loadAccounts() {
   }
 
   tbody.innerHTML = data.data.map(r => {
-    const das = (r.das_settings && r.das_settings.das) ? r.das_settings.das : '-';
-    const arr = (r.das_settings && r.das_settings.arr) ? r.das_settings.arr : '-';
-    const preview = (r.das_settings && r.das_settings.preview_count) ? r.das_settings.preview_count : '-';
+    const das = (r.das_settings && r.das_settings.das != null) ? r.das_settings.das : '-';
+    const arr = (r.das_settings && r.das_settings.arr != null) ? r.das_settings.arr : '-';
+    const preview = (r.das_settings && r.das_settings.preview_count != null) ? r.das_settings.preview_count : '-';
     const banned = r.is_banned ? '<span class="badge badge-banned">已封禁</span>' : '<span class="badge badge-active">正常</span>';
     const bestTime = r.best_time ? formatTime(r.best_time) : '-';
     const bestScore = r.best_score ? r.best_score.toLocaleString() : '-';
@@ -276,7 +311,8 @@ async function loadAccounts() {
     }
 
     const banText = r.is_banned ? '解封' : '封禁';
-    const banClass = r.is_banned ? 'btn-outline' : 'btn-danger';
+    const banClass = r.is_banned ? 'btn-success-outline' : 'btn-warning';
+    const banAction = r.is_banned ? '解封' : '封禁';
 
     return `<tr>
       <td>${r.id}</td>
@@ -288,8 +324,11 @@ async function loadAccounts() {
       <td>${colorHtml}</td>
       <td style="font-size:12px">${ipHtml}</td>
       <td>
-        <button class="btn btn-primary btn-sm" onclick="openResetModal('${escapeHtml(r.username)}')">重置密码</button>
-        <button class="btn ${banClass} btn-sm" onclick="toggleBan('${escapeHtml(r.username)}')">${banText}</button>
+        <div class="action-btns">
+          <button class="btn btn-outline btn-sm" onclick="openResetModal('${escapeHtml(r.username)}')">重置密码</button>
+          <button class="btn ${banClass} btn-sm" onclick="toggleBan('${escapeHtml(r.username)}', '${banAction}')">${banText}</button>
+          <button class="btn btn-danger btn-sm" onclick="clearSpeedRecords('${escapeHtml(r.username)}')">清除40行记录</button>
+        </div>
       </td>
     </tr>`;
   }).join('');
@@ -329,8 +368,8 @@ async function doResetPassword() {
   }
 }
 
-async function toggleBan(username) {
-  if (!confirm(`确定要封禁/解封账号「${username}」吗？`)) return;
+async function toggleBan(username, action) {
+  if (!confirm(`确定要${action}账号「${username}」吗？`)) return;
   const res = await fetch('/api/admin/ban', {
     method: 'POST', headers: {'Content-Type':'application/json'},
     body: JSON.stringify({username})
@@ -345,8 +384,110 @@ async function toggleBan(username) {
   }
 }
 
+async function deleteLeaderboard(username) {
+  if (!confirm(`确定要删除「${username}」的所有竞速40行记录吗？将从排行榜中移除。`)) return;
+  const res = await fetch('/api/admin/leaderboard/delete', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({username})
+  });
+  const data = await res.json();
+  alert(data.message);
+  if (data.success) loadLeaderboard();
+}
+
+async function clearSpeedRecords(username) {
+  if (!confirm(`确定要清除「${username}」的所有竞速40行记录吗？`)) return;
+  const res = await fetch('/api/admin/leaderboard/delete', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({username})
+  });
+  const data = await res.json();
+  alert(data.message);
+  if (data.success) { loadAccounts(); loadLeaderboard(); }
+}
+
 // Init
 checkSession();
+
+// ===== Announcements =====
+function formatAnnTime(ts) {
+  if (!ts) return '-';
+  const d = new Date(ts.replace(' ', 'T') + 'Z');
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+async function loadAnnouncements() {
+  const res = await fetch('/api/admin/announcements');
+  const data = await res.json();
+  const tbody = document.getElementById('ann-tbody');
+
+  if (res.status === 401 || !data.success) {
+    location.reload(); return;
+  }
+
+  if (!data.data || data.data.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" class="text-dim">暂无数据</td></tr>'; return;
+  }
+
+  tbody.innerHTML = data.data.map(a => {
+    const summary = a.content ? (a.content.length > 40 ? a.content.substring(0, 40) + '...' : a.content) : '';
+    const revoked = a.is_revoked;
+    const statusHtml = revoked ? '<span style="color:#f87171">已撤回</span>' : '<span style="color:#4ade80">正常</span>';
+    const actionHtml = revoked
+      ? '<span class="text-dim">-</span>'
+      : `<button class="btn btn-warning btn-sm" onclick="revokeAnnouncement(${a.id})">撤回</button>`;
+    return `<tr class="${revoked ? 'tr-revoked' : ''}">
+      <td>${a.id}</td>
+      <td>${escapeHtml(a.title)}</td>
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(summary)}</td>
+      <td>${escapeHtml(a.publisher)}</td>
+      <td>${formatAnnTime(a.created_at)}</td>
+      <td>${statusHtml}</td>
+      <td>${actionHtml}</td>
+    </tr>`;
+  }).join('');
+}
+
+async function submitAnnouncement() {
+  const title = document.getElementById('ann-title').value.trim();
+  const content = document.getElementById('ann-content').value.trim();
+  const msgEl = document.getElementById('ann-msg');
+
+  if (!title || !content) {
+    msgEl.className = 'msg msg-error'; msgEl.textContent = '标题和内容不能为空'; msgEl.classList.remove('hidden'); msgEl.style.display = 'inline-block';
+    return;
+  }
+
+  const res = await fetch('/api/admin/announcements', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({title, content})
+  });
+  const data = await res.json();
+
+  if (data.success) {
+    msgEl.className = 'msg msg-success'; msgEl.textContent = data.message; msgEl.classList.remove('hidden'); msgEl.style.display = 'inline-block';
+    document.getElementById('ann-title').value = '';
+    document.getElementById('ann-content').value = '';
+    loadAnnouncements();
+  } else {
+    msgEl.className = 'msg msg-error'; msgEl.textContent = data.message; msgEl.classList.remove('hidden'); msgEl.style.display = 'inline-block';
+  }
+}
+
+async function revokeAnnouncement(id) {
+  if (!confirm('确定要撤回该公告吗？玩家将无法看到此公告。')) return;
+
+  const res = await fetch(`/api/admin/announcements/${id}/revoke`, {method:'POST'});
+  const data = await res.json();
+
+  if (data.success) {
+    alert(data.message);
+    loadAnnouncements();
+  } else {
+    alert(data.message);
+  }
+}
 </script>
 </body>
 </html>

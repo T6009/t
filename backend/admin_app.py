@@ -32,7 +32,8 @@ def admin_login():
     if not username or not password:
         return jsonify({'success': False, 'message': '请输入用户名和密码'})
 
-    success, result = db.admin_login(username, password)
+    ip = request.remote_addr or ''
+    success, result = db.admin_login(username, password, ip)
     if success:
         session['admin_logged_in'] = True
         session['admin_username'] = result['username']
@@ -101,6 +102,56 @@ def admin_ban():
         return jsonify({'success': False, 'message': '请指定账号'})
 
     success, message = db.ban_account(username)
+    return jsonify({'success': success, 'message': message})
+
+
+@app.route('/api/admin/leaderboard/delete', methods=['POST'])
+def admin_delete_leaderboard():
+    check = require_admin()
+    if check:
+        return check
+    data = request.json
+    username = data.get('username', '')
+    if not username:
+        return jsonify({'success': False, 'message': '请指定玩家'})
+    deleted = db.delete_player_speed_records(username)
+    return jsonify({'success': True, 'message': f'已删除 {username} 的 {deleted} 条竞速记录'})
+
+
+# ---- Admin Announcement Routes ----
+
+@app.route('/api/admin/announcements', methods=['GET'])
+def admin_announcements():
+    check = require_admin()
+    if check:
+        return check
+    announcements = db.get_announcements(include_revoked=True)
+    return jsonify({'success': True, 'data': announcements})
+
+
+@app.route('/api/admin/announcements', methods=['POST'])
+def admin_add_announcement():
+    check = require_admin()
+    if check:
+        return check
+    data = request.json
+    title = data.get('title', '').strip()
+    content = data.get('content', '').strip()
+    publisher = session.get('admin_username', 'admin')
+
+    if not title or not content:
+        return jsonify({'success': False, 'message': '标题和内容不能为空'})
+
+    aid = db.add_announcement(title, content, publisher)
+    return jsonify({'success': True, 'message': '公告已发布', 'id': aid})
+
+
+@app.route('/api/admin/announcements/<int:aid>/revoke', methods=['POST'])
+def admin_revoke_announcement(aid):
+    check = require_admin()
+    if check:
+        return check
+    success, message = db.revoke_announcement(aid)
     return jsonify({'success': success, 'message': message})
 
 

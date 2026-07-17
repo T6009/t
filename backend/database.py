@@ -3,7 +3,7 @@ import json
 import bcrypt
 import os
 
-DB_PATH = os.path.join(os.path.dirname(__file__), 'tetris.db')
+DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), 'tetris.db')
 
 
 def get_db():
@@ -94,6 +94,15 @@ def init_db():
                  '{"das":10,"arr":2,"sds":0,"preview_count":5}')
             )
 
+    c.execute('''CREATE TABLE IF NOT EXISTS announcements (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        content TEXT NOT NULL,
+        publisher TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        is_revoked INTEGER DEFAULT 0
+    )''')
+
     # Ensure admin account exists
     c.execute('SELECT id FROM accounts WHERE username = ?', ('admin',))
     if not c.fetchone():
@@ -163,11 +172,13 @@ class Database:
         conn.close()
 
     def check_same_ip(self, ip, current_username):
-        """检测同 IP 下是否有其他未关联的账号。有则返回对方用户名，无则返回 None"""
+        """检测同 IP 下是否有其他未关联的玩家账号（排除管理员）。有则返回对方用户名，无则返回 None"""
         conn = get_db()
         c = conn.cursor()
-        c.execute('''SELECT DISTINCT username FROM login_logs
-            WHERE ip_address = ? AND username != ?''', (ip, current_username))
+        c.execute('''SELECT DISTINCT l.username FROM login_logs l
+            JOIN accounts a ON l.username = a.username
+            WHERE l.ip_address = ? AND l.username != ? AND a.role != 'admin' ''',
+            (ip, current_username))
         others = [r['username'] for r in c.fetchall()]
         conn.close()
         for other in others:
@@ -258,6 +269,16 @@ class Database:
             return {'time': row['best_time'], 'score': row['best_score'], 'lines': row['best_lines']}
         return None
 
+    def delete_player_speed_records(self, username):
+        """删除某玩家的所有竞速40行记录，返回删除条数"""
+        conn = get_db()
+        c = conn.cursor()
+        c.execute('DELETE FROM records WHERE username = ? AND mode = ?', (username, 'speed'))
+        deleted = c.rowcount
+        conn.commit()
+        conn.close()
+        return deleted
+
     def get_speed_leaderboard(self, limit=50):
         """竞速40行排行榜：每人最短用时排名，排除封禁账号"""
         conn = get_db()
@@ -300,8 +321,8 @@ class Database:
 
     # ---- Admin Methods ----
 
-    def admin_login(self, username, password):
-        """管理员登录，返回 role 信息"""
+    def admin_login(self, username, password, ip=''):
+        """管理员登录，返回 role 信息，并记录 IP"""
         conn = get_db()
         c = conn.cursor()
         c.execute('SELECT * FROM accounts WHERE username = ? AND role = ?', (username, 'admin'))
@@ -310,6 +331,8 @@ class Database:
         if not row:
             return False, '管理员账号不存在'
         if bcrypt.checkpw(password.encode('utf-8'), row['password_hash']):
+            if ip:
+                self.log_login(username, ip)
             return True, {'username': row['username'], 'role': row['role']}
         return False, '密码错误'
 
@@ -325,7 +348,7 @@ class Database:
             (SELECT MAX(r.score) FROM records r
              WHERE r.username = a.username AND r.mode = 'speed' AND r.time_seconds > 0
             ) as best_score,
-            (SELECT GROUP_CONCAT(DISTINCT ip_address, ',') FROM login_logs l
+            (SELECT GROUP_CONCAT(DISTINCT l.ip_address) FROM login_logs l
              WHERE l.username = a.username
             ) as login_ips
             FROM accounts a
@@ -374,3 +397,45 @@ class Database:
         conn.commit()
         conn.close()
         return True, '已封禁' if new_status else '已解封'
+
+    # ---- Announcement Methods ----
+
+    def add_announcement(self, title, content, publisher):
+        """发布公告，返回公告id"""
+        conn = get_db()
+        c = conn.cursor()
+        c.execute('INSERT INTO announcements (title, content, publisher) VALUES (?, ?, ?)',
+                  (title, content, publisher))
+        conn.commit()
+        aid = c.lastrowid
+        conn.close()
+        return aid
+
+    def get_announcements(self, include_revoked=False):
+        """获取公告列表。玩家默认不含已撤回，管理员含已撤回。按时间倒序。"""
+        conn = get_db()
+        c = conn.cursor()
+        if include_revoked:
+            c.execute('SELECT id, title, content, publisher, created_at, is_revoked FROM announcements ORDER BY created_at DESC')
+        else:
+            c.execute('SELECT id, title, content, publisher, created_at FROM announcements WHERE is_revoked = 0 ORDER BY created_at DESC')
+        rows = [dict(r) for r in c.fetchall()]
+        conn.close()
+        return rows
+
+    def revoke_announcement(self, announcement_id):
+        """撤回公告，返回 (success, message)"""
+        conn = get_db()
+        c = conn.cursor()
+        c.execute('SELECT id, is_revoked FROM announcements WHERE id = ?', (announcement_id,))
+        row = c.fetchone()
+        if not row:
+            conn.close()
+            return False, '公告不存在'
+        if row['is_revoked']:
+            conn.close()
+            return False, '公告已撤回'
+        c.execute('UPDATE announcements SET is_revoked = 1 WHERE id = ?', (announcement_id,))
+        conn.commit()
+        conn.close()
+        return True, '公告已撤回'

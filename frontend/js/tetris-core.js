@@ -125,6 +125,7 @@ class TetrisEngine {
         this.sds = options.sds || 0;   // soft drop speed (0 = instant-ish)
         this.dasCounter = { left: 0, right: 0 };
         this.dasCharged = { left: false, right: false };
+        this.arrCounter = { left: 0, right: 0 };
 
         // Keys
         this.keys = options.keys || {
@@ -408,6 +409,15 @@ class TetrisEngine {
         }
 
         if (cleared.length > 0) {
+            // Scoring (must update lines before onLineClear callback, so win check sees the new count)
+            const basePoints = [0, 100, 300, 500, 800];
+            this.combo++;
+            const comboBonus = this.combo * 50;
+            this.score += basePoints[cleared.length] * this.level + comboBonus;
+            this.lines += cleared.length;
+            this.level = Math.floor(this.lines / 10) + 1;
+            this.gravity = Math.max(50, 1000 - (this.level - 1) * 80);
+
             if (this.onLineClear) this.onLineClear(cleared);
 
             // Remove cleared lines
@@ -433,15 +443,6 @@ class TetrisEngine {
                     this.vanishRandomCells();
                 }
             }
-
-            // Scoring
-            const basePoints = [0, 100, 300, 500, 800];
-            this.combo++;
-            const comboBonus = this.combo * 50;
-            this.score += basePoints[cleared.length] * this.level + comboBonus;
-            this.lines += cleared.length;
-            this.level = Math.floor(this.lines / 10) + 1;
-            this.gravity = Math.max(50, 1000 - (this.level - 1) * 80);
         } else {
             this.combo = -1;
         }
@@ -464,6 +465,15 @@ class TetrisEngine {
         }
 
         if (cleared.length > 0) {
+            // Scoring (must update lines before onLineClear callback, so win check sees the new count)
+            const basePoints = [0, 100, 300, 500, 800];
+            this.combo++;
+            const comboBonus = this.combo * 50;
+            this.score += basePoints[cleared.length] * this.level + comboBonus;
+            this.lines += cleared.length;
+            this.level = Math.floor(this.lines / 10) + 1;
+            this.gravity = Math.max(50, 1000 - (this.level - 1) * 80);
+
             if (this.onLineClear) this.onLineClear(cleared);
 
             for (const y of cleared) {
@@ -472,14 +482,6 @@ class TetrisEngine {
                     this.colorBoard[y][x] = '';
                 }
             }
-
-            const basePoints = [0, 100, 300, 500, 800];
-            this.combo++;
-            const comboBonus = this.combo * 50;
-            this.score += basePoints[cleared.length] * this.level + comboBonus;
-            this.lines += cleared.length;
-            this.level = Math.floor(this.lines / 10) + 1;
-            this.gravity = Math.max(50, 1000 - (this.level - 1) * 80);
 
             // Mutations within no-gravity mode
             if (this.mutations.has('extra_cells')) {

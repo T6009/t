@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>公告列表 | Tetris</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+.announce-page {
+    max-width: 780px;
+    margin: 40px auto;
+    padding: 0 20px;
+}
+.announce-page h2 {
+    color: var(--accent);
+    margin-bottom: 24px;
+    text-align: center;
+}
+.announce-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.announce-item {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    transition: all 0.2s;
+}
+.announce-item:hover {
+    border-color: rgba(255,204,0,0.3);
+}
+.announce-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 20px;
+    cursor: pointer;
+    user-select: none;
+}
+.announce-header .title {
+    font-weight: 600;
+    font-size: 1.05em;
+    color: #ffcc00;
+}
+.announce-header .meta {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    font-size: 0.85em;
+    color: var(--text-dim);
+    flex-shrink: 0;
+    margin-left: 16px;
+}
+.announce-body {
+    padding: 0 20px 18px;
+    line-height: 1.7;
+    color: #c0c0c0;
+    white-space: pre-wrap;
+    font-size: 0.95em;
+    border-top: 1px solid var(--border);
+    display: none;
+}
+.announce-item.expanded .announce-body { display: block; }
+.announce-item.expanded .announce-header { border-bottom: none; }
+.announce-expand-icon {
+    font-size: 0.8em;
+    margin-left: 6px;
+    transition: transform 0.2s;
+    color: var(--text-dim);
+}
+.announce-item.expanded .announce-expand-icon {
+    transform: rotate(180deg);
+}
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-dim);
+    font-size: 1em;
+}
+.back-link {
+    display: inline-block;
+    color: var(--accent);
+    text-decoration: none;
+    font-size: 0.9em;
+    margin-bottom: 16px;
+}
+.back-link:hover {
+    text-decoration: underline;
+}
+</style>
+</head>
+<body>
+
+<nav class="nav-bar">
+    <span class="logo">TETRIS</span>
+    <a href="/">首页</a>
+    <a href="/announcements.html" class="nav-announce active">公告</a>
+</nav>
+
+<div class="announce-page">
+    <a href="/" class="back-link">&larr; 返回游戏</a>
+    <h2>公告</h2>
+    <div class="announce-list" id="announce-list">
+        <div class="empty-state" id="empty-state">暂无公告</div>
+    </div>
+</div>
+
+<script>
+function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
+function formatTime(ts) {
+    const d = new Date(ts + 'Z');
+    const pad = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+async function loadAnnouncements() {
+    const list = document.getElementById('announce-list');
+    try {
+        const res = await fetch('/api/announcements');
+        const data = await res.json();
+        if (!data.success || !data.data || data.data.length === 0) {
+            document.getElementById('empty-state').style.display = 'block';
+            return;
+        }
+        document.getElementById('empty-state').style.display = 'none';
+        list.innerHTML = data.data.map(a => `
+            <div class="announce-item" id="item-${a.id}">
+                <div class="announce-header" onclick="toggleItem(${a.id})">
+                    <span class="title">${escapeHtml(a.title)} <span class="announce-expand-icon">&#9660;</span></span>
+                    <span class="meta">
+                        <span>${escapeHtml(a.publisher)}</span>
+                        <span>${formatTime(a.created_at)}</span>
+                    </span>
+                </div>
+                <div class="announce-body">${escapeHtml(a.content)}</div>
+            </div>
+        `).join('');
+    } catch (e) {
+        document.getElementById('empty-state').textContent = '加载失败，请稍后重试';
+        document.getElementById('empty-state').style.display = 'block';
+    }
+}
+
+function toggleItem(id) {
+    const item = document.getElementById('item-' + id);
+    item.classList.toggle('expanded');
+}
+
+loadAnnouncements();
+</script>
+</body>
+</html>

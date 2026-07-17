@@ -49,6 +49,17 @@
 | username2 | TEXT | NOT NULL | 账号2（字母序较大） |
 | created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 确认时间 |
 
+#### announcements
+
+| 字段 | 类型 | 约束 | 说明 |
+|------|------|------|------|
+| id | INTEGER | PRIMARY KEY AUTOINCREMENT | 公告 ID |
+| title | TEXT | NOT NULL | 公告标题 |
+| content | TEXT | NOT NULL | 公告正文 |
+| publisher | TEXT | NOT NULL | 发布者用户名 |
+| created_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | 发布时间 |
+| is_revoked | INTEGER | DEFAULT 0 | 是否已撤回（0=正常，1=已撤回） |
+
 ### ER 关系图（文本描述）
 
 ```
@@ -84,6 +95,17 @@
 │ username1     TEXT   │   ip_links)
 │ username2     TEXT   │
 │ created_at    TS     │
+└──────────────────────┘
+
+┌──────────────────────┐
+│    announcements     │
+├──────────────────────┤
+│ id            PK     │
+│ title         TEXT   │
+│ content       TEXT   │
+│ publisher     TEXT   │
+│ created_at    TS     │
+│ is_revoked    INT    │
 └──────────────────────┘
 ```
 

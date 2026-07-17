@@ -472,18 +472,30 @@ setInterval(() => {
     if (lastKeyDowns.has('left') && !lastKeyDowns.has('right')) {
         engine.dasCounter.left++;
         if (engine.dasCounter.left >= das) {
-            if (!engine.dasCharged.left || arr === 0 || engine.dasCounter.left % arr === 0) {
-                engine.moveLeft();
+            engine.arrCounter.left++;
+            if (!engine.dasCharged.left || engine.arrCounter.left >= arr) {
+                if (arr === 0) {
+                    while (engine.moveLeft()) {}
+                } else {
+                    engine.moveLeft();
+                }
                 engine.dasCharged.left = true;
+                engine.arrCounter.left = 0;
             }
         }
     }
     if (lastKeyDowns.has('right') && !lastKeyDowns.has('left')) {
         engine.dasCounter.right++;
         if (engine.dasCounter.right >= das) {
-            if (!engine.dasCharged.right || arr === 0 || engine.dasCounter.right % arr === 0) {
-                engine.moveRight();
+            engine.arrCounter.right++;
+            if (!engine.dasCharged.right || engine.arrCounter.right >= arr) {
+                if (arr === 0) {
+                    while (engine.moveRight()) {}
+                } else {
+                    engine.moveRight();
+                }
                 engine.dasCharged.right = true;
+                engine.arrCounter.right = 0;
             }
         }
     }

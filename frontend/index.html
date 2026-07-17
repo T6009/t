@@ -16,13 +16,28 @@
     <a href="#" data-page="rhythm">节奏</a>
     <a href="#" data-page="mutation">变异</a>
     <a href="#" data-page="settings">设置</a>
+    <a href="/announcements.html" class="nav-announce">公告</a>
     <a href="#" data-page="account">账号管理</a>
 </nav>
 
 <!-- ===== Home Page ===== -->
 <div id="page-home" class="home-container">
     <h1>俄罗斯方块</h1>
-    <p class="subtitle">SRS 现代俄罗斯方块 — 多模式、多变异、自定义按键</p>
+    <p class="subtitle">SRS 现代俄罗斯方块 — 多模式、多变异、排行榜、自定义按键</p>
+    <div class="announce-banner" id="home-announce-banner" style="display:none">
+        <div class="announce-banner-header" id="home-announce-header">
+            <span class="announce-icon">📢</span>
+            <span id="home-announce-title">公告</span>
+            <span class="announce-arrow" id="home-announce-arrow">&#9660;</span>
+        </div>
+        <div class="announce-banner-body" id="home-announce-body" style="display:none">
+            <div class="announce-banner-content" id="home-announce-content"></div>
+            <div class="announce-banner-footer">
+                <span id="home-announce-meta"></span>
+                <a href="/announcements.html" class="announce-view-all">查看全部公告 &rarr;</a>
+            </div>
+        </div>
+    </div>
     <div class="mode-grid">
         <a href="#" class="mode-card" data-launch="speed">
             <div class="mode-icon">⏱️</div>
@@ -39,10 +54,10 @@
             <div class="mode-name">变异模式</div>
             <div class="mode-desc">消行不掉落 / 随机生成砖粒 / 随机消失砖粒</div>
         </a>
-        <a href="#" class="mode-card" data-launch="normal">
-            <div class="mode-icon">🧱</div>
-            <div class="mode-name">经典模式</div>
-            <div class="mode-desc">标准 SRS 俄罗斯方块，无限挑战</div>
+        <a href="#" class="mode-card" data-launch="settings">
+            <div class="mode-icon">⚙️</div>
+            <div class="mode-name">设置</div>
+            <div class="mode-desc">自定义按键、操作手感与方块颜色</div>
         </a>
     </div>
     <div class="leaderboard-section" id="leaderboard-section">
@@ -160,7 +175,7 @@
             </div>
             <div class="das-row">
                 <label>ARR（重复间隔）</label>
-                <input type="range" id="arr-slider" min="1" max="10" value="2" step="1"
+                <input type="range" id="arr-slider" min="0" max="10" value="2" step="1"
                     oninput="document.getElementById('arr-val').textContent=this.value">
                 <span class="das-val" id="arr-val">2</span>
                 <span class="text-sm text-dim">帧</span>
@@ -242,7 +257,7 @@ function showPage(name) {
 
     if (name === 'account') updateAccountPage();
     if (name === 'settings') loadSettingsPage();
-    if (name === 'home') fetchLeaderboard();
+    if (name === 'home') { fetchLeaderboard(); fetchHomeAnnouncement(); }
 }
 
 // Nav bar clicks
@@ -624,6 +639,54 @@ function escapeHtml(str) {
     const div = document.createElement('div');
     div.textContent = str;
     return div.innerHTML;
+}
+
+async function fetchHomeAnnouncement() {
+    const banner = document.getElementById('home-announce-banner');
+    const titleEl = document.getElementById('home-announce-title');
+    const contentEl = document.getElementById('home-announce-content');
+    const metaEl = document.getElementById('home-announce-meta');
+    const bodyEl = document.getElementById('home-announce-body');
+    const headerEl = document.getElementById('home-announce-header');
+
+    try {
+        const res = await fetch('/api/announcements');
+        const data = await res.json();
+        if (data.success && data.data && data.data.length > 0) {
+            const latest = data.data[0];
+            titleEl.textContent = latest.title;
+            banner.setAttribute('data-id', latest.id);
+            banner.setAttribute('data-content', latest.content || '');
+            banner.setAttribute('data-meta', (latest.publisher || '管理员') + ' · ' + formatTimeAnnounce(latest.created_at));
+            banner.style.display = 'block';
+
+            // Reset expanded state
+            banner.classList.remove('expanded');
+            bodyEl.style.display = 'none';
+
+            // Header click handler
+            headerEl.onclick = function() {
+                const expanded = banner.classList.toggle('expanded');
+                if (expanded) {
+                    contentEl.textContent = banner.getAttribute('data-content');
+                    metaEl.textContent = banner.getAttribute('data-meta');
+                    bodyEl.style.display = 'block';
+                } else {
+                    bodyEl.style.display = 'none';
+                }
+            };
+        } else {
+            banner.style.display = 'none';
+        }
+    } catch (e) {
+        banner.style.display = 'none';
+    }
+}
+
+function formatTimeAnnounce(ts) {
+    const d = new Date(ts + 'Z');
+    const pad = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 </script>
 </body>
