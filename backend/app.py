@@ -99,6 +99,19 @@ def confirm_ip_link():
     return jsonify({'success': True})
 
 
+@app.route('/api/guest', methods=['POST'])
+def guest_login():
+    data = request.json
+    guest_name = data.get('username', '').strip()
+
+    if not guest_name or len(guest_name) > 30:
+        return jsonify({'success': False, 'message': '参数错误'})
+
+    ip = request.remote_addr or ''
+    result = db.guest_login(guest_name, ip)
+    return jsonify({'success': True, 'data': result})
+
+
 # ---- Settings Routes ----
 
 @app.route('/api/settings', methods=['POST'])
@@ -149,6 +162,11 @@ def save_record():
 
     if not username or not mode:
         return jsonify({'success': False, 'message': '参数错误'})
+
+    # 游客不保存记录
+    guest_check = db.is_guest(username)
+    if guest_check:
+        return jsonify({'success': True, 'message': '游客模式不保存记录'})
 
     db.save_record(username, mode, score, lines_cleared, time_seconds, detail)
 

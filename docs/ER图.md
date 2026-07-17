@@ -16,6 +16,7 @@
 | color_settings | TEXT | DEFAULT '{}' | 方块颜色 JSON |
 | role | TEXT | DEFAULT 'user' | 角色（user / admin） |
 | is_banned | INTEGER | DEFAULT 0 | 是否被封禁 |
+| is_guest | INTEGER | DEFAULT 0 | 是否为游客（0=注册用户，1=游客） |
 
 #### records
 
@@ -74,6 +75,7 @@
 │ color_settings JSON  │         │ time_seconds  REAL   │
 │ role          TEXT   │         │ detail        TEXT   │
 │ is_banned     INT    │         │ created_at    TS     │
+│ is_guest      INT    │
 └──────────────────────┘         └──────────────────────┘
             │
             │ 1:N

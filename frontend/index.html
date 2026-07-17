@@ -210,6 +210,7 @@
         <p class="text-center mt-16">
             <span class="link-text" onclick="showRegisterForm()">没有账号？注册</span>
         </p>
+        <button class="btn btn-block mt-8" style="background:#444;color:#ccc;" onclick="doGuestLogin()">游客模式</button>
     </div>
     <!-- Register Form -->
     <div id="account-register" class="hidden">
@@ -225,12 +226,12 @@
     <div id="account-info" class="hidden">
         <h2>账号管理</h2>
         <p style="margin-bottom:16px;">当前账号：<b id="info-username"></b></p>
-        <div class="settings-section">
+        <div class="settings-section" id="name-change-section">
             <h3>修改名称</h3>
             <div class="form-group"><input type="text" id="new-name" placeholder="新名称"></div>
             <button class="btn btn-outline" onclick="changeName()">修改名称</button>
         </div>
-        <div class="settings-section">
+        <div class="settings-section" id="password-change-section">
             <h3>修改密码</h3>
             <div class="form-group"><input type="password" id="old-pw" placeholder="旧密码"></div>
             <div class="form-group"><input type="password" id="new-pw1" placeholder="新密码"></div>
@@ -367,6 +368,12 @@ const KEY_ACTIONS = [
 ];
 
 function loadSettingsPage() {
+    if (Auth.user && Auth.user.is_guest) {
+        document.getElementById('settings-login-prompt').classList.remove('hidden');
+        document.getElementById('settings-login-prompt').textContent = '游客模式暂不支持自定义设置，请登录后使用';
+        document.getElementById('settings-content').classList.add('hidden');
+        return;
+    }
     if (!Auth.isLoggedIn()) {
         document.getElementById('settings-login-prompt').classList.remove('hidden');
         document.getElementById('settings-content').classList.add('hidden');
@@ -474,7 +481,15 @@ function updateAccountPage() {
         document.getElementById('account-login').classList.add('hidden');
         document.getElementById('account-register').classList.add('hidden');
         document.getElementById('account-info').classList.remove('hidden');
-        document.getElementById('info-username').textContent = Auth.user.username;
+        if (Auth.user.is_guest) {
+            document.getElementById('info-username').textContent = '游客: ' + Auth.user.username;
+            document.getElementById('name-change-section').style.display = 'none';
+            document.getElementById('password-change-section').style.display = 'none';
+        } else {
+            document.getElementById('info-username').textContent = Auth.user.username;
+            document.getElementById('name-change-section').style.display = '';
+            document.getElementById('password-change-section').style.display = '';
+        }
     } else {
         document.getElementById('account-login').classList.remove('hidden');
         document.getElementById('account-register').classList.add('hidden');
@@ -530,6 +545,18 @@ async function doLogin() {
         }
     } else {
         UI.showMessage(res.message, 'error');
+    }
+}
+
+async function doGuestLogin() {
+    const res = await Auth.guestLogin();
+    if (res.success) {
+        UI.showMessage('已进入游客模式，成绩不会计入排行榜', 'info');
+        updateAccountPage();
+        updateNav();
+        showPage('home');
+    } else {
+        UI.showMessage('游客登录失败', 'error');
     }
 }
 
@@ -603,11 +630,17 @@ function doLogout() {
 
 // ===== Init =====
 updateNav();
-showPage('home');
+showPage('account');
 
 async function fetchLeaderboard() {
     if (!Auth.isLoggedIn()) {
         document.getElementById('leaderboard-section').classList.add('hidden');
+        return;
+    }
+    // 游客无法查看排行榜
+    if (Auth.user && Auth.user.is_guest) {
+        document.getElementById('leaderboard-section').classList.remove('hidden');
+        document.getElementById('leaderboard-body').innerHTML = '<tr><td colspan="4" class="text-dim">登录后可查看排行榜</td></tr>';
         return;
     }
     document.getElementById('leaderboard-section').classList.remove('hidden');

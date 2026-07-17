@@ -73,6 +73,10 @@ def init_db():
         c.execute('ALTER TABLE accounts ADD COLUMN is_banned INTEGER NOT NULL DEFAULT 0')
     except:
         pass
+    try:
+        c.execute('ALTER TABLE accounts ADD COLUMN is_guest INTEGER NOT NULL DEFAULT 0')
+    except:
+        pass
 
     # Check if demo accounts exist
     c.execute('SELECT COUNT(*) FROM accounts')
@@ -177,7 +181,7 @@ class Database:
         c = conn.cursor()
         c.execute('''SELECT DISTINCT l.username FROM login_logs l
             JOIN accounts a ON l.username = a.username
-            WHERE l.ip_address = ? AND l.username != ? AND a.role != 'admin' ''',
+            WHERE l.ip_address = ? AND l.username != ? AND a.role != 'admin' AND a.is_guest = 0''',
             (ip, current_username))
         others = [r['username'] for r in c.fetchall()]
         conn.close()
@@ -288,6 +292,7 @@ class Database:
             LEFT JOIN accounts a ON r.username = a.username
             WHERE r.mode = 'speed' AND r.time_seconds > 0
             AND (a.is_banned IS NULL OR a.is_banned = 0)
+            AND (a.is_guest IS NULL OR a.is_guest = 0)
             GROUP BY r.username ORDER BY best_time ASC LIMIT ?''', (limit,))
         rows = [dict(r) for r in c.fetchall()]
         conn.close()
@@ -310,6 +315,27 @@ class Database:
         rows = [dict(r) for r in c.fetchall()]
         conn.close()
         return rows
+
+    def guest_login(self, guest_name, ip=''):
+        """游客登录：创建临时游客账号，记录 IP，返回账号信息"""
+        conn = get_db()
+        c = conn.cursor()
+        c.execute('INSERT INTO accounts (username, password_hash, key_settings, das_settings, role, is_guest) VALUES (?, ?, ?, ?, ?, ?)',
+                  (guest_name, '', '{}', '{}', 'user', 1))
+        conn.commit()
+        conn.close()
+        if ip:
+            self.log_login(guest_name, ip)
+        return {'username': guest_name, 'key_settings': {}, 'das_settings': {}, 'role': 'user', 'is_guest': True}
+
+    def is_guest(self, username):
+        """检查是否为游客账号"""
+        conn = get_db()
+        c = conn.cursor()
+        c.execute('SELECT is_guest FROM accounts WHERE username = ?', (username,))
+        row = c.fetchone()
+        conn.close()
+        return row and row['is_guest'] == 1
 
     def check_username(self, username):
         conn = get_db()
@@ -341,7 +367,7 @@ class Database:
         conn = get_db()
         c = conn.cursor()
         c.execute('''SELECT a.id, a.username, a.key_settings, a.das_settings,
-            a.color_settings, a.is_banned, a.role,
+            a.color_settings, a.is_banned, a.is_guest, a.role,
             (SELECT MIN(r.time_seconds) FROM records r
              WHERE r.username = a.username AND r.mode = 'speed' AND r.time_seconds > 0
             ) as best_time,

@@ -313,10 +313,12 @@ async function loadAccounts() {
     const banText = r.is_banned ? '解封' : '封禁';
     const banClass = r.is_banned ? 'btn-success-outline' : 'btn-warning';
     const banAction = r.is_banned ? '解封' : '封禁';
+    const isGuest = r.is_guest === 1;
+    const guestTag = isGuest ? ' <span class="text-dim" style="font-size:11px;">[游客]</span>' : '';
 
     return `<tr>
       <td>${r.id}</td>
-      <td>${escapeHtml(r.username)}${banned}</td>
+      <td>${escapeHtml(r.username)}${guestTag}${banned}</td>
       <td>${banned}</td>
       <td>${bestTime} / ${bestScore}</td>
       <td><span class="das-badge">DAS:${das}</span> <span class="das-badge">ARR:${arr}</span></td>
@@ -325,9 +327,10 @@ async function loadAccounts() {
       <td style="font-size:12px">${ipHtml}</td>
       <td>
         <div class="action-btns">
+          ${isGuest ? '<span class="text-dim">游客账号</span>' : `
           <button class="btn btn-outline btn-sm" onclick="openResetModal('${escapeHtml(r.username)}')">重置密码</button>
           <button class="btn ${banClass} btn-sm" onclick="toggleBan('${escapeHtml(r.username)}', '${banAction}')">${banText}</button>
-          <button class="btn btn-danger btn-sm" onclick="clearSpeedRecords('${escapeHtml(r.username)}')">清除40行记录</button>
+          <button class="btn btn-danger btn-sm" onclick="clearSpeedRecords('${escapeHtml(r.username)}')">清除40行记录</button>`}
         </div>
       </td>
     </tr>`;
